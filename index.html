@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="My File Link">
+  <title>My File Link</title>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f3f4f6; overflow-x:hidden; }
+    .container { max-width:1200px; margin:0 auto; padding:1rem; }
+    .btn { padding:.75rem 1.5rem; border:none; border-radius:.5rem; cursor:pointer; font-weight:600; transition:all .2s; font-size:1rem; display:inline-flex; align-items:center; gap:.5rem; justify-content:center; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-primary { background:#7c3aed; color:white; }
+    .btn-primary:hover:not(:disabled) { background:#6d28d9; }
+    .btn-secondary { background:#3b82f6; color:white; }
+    .btn-secondary:hover:not(:disabled) { background:#2563eb; }
+    .btn-pink { background:#db2777; color:white; }
+    .btn-pink:hover:not(:disabled) { background:#be185d; }
+    .input { width:100%; padding:.75rem 1rem; border:1px solid #d1d5db; border-radius:.5rem; font-size:1rem; background:white; }
+    .input:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+    .card { background:white; border-radius:1rem; box-shadow:0 4px 6px rgba(0,0,0,.07); padding:1.5rem; margin-bottom:1rem; }
+    .header { background:linear-gradient(135deg,#7c3aed 0%,#3b82f6 100%); color:white; padding:1rem; box-shadow:0 2px 10px rgba(0,0,0,.1); }
+    .file-item, .folder-item { display:flex; align-items:center; gap:1rem; padding:.75rem; border-radius:.5rem; transition:all .2s; cursor:pointer; border:1px solid #e5e7eb; margin-bottom:.5rem; }
+    .file-item:hover, .folder-item:hover { background:#f9fafb; }
+    .thumb-wrap { position:relative; width:64px; height:64px; flex-shrink:0; }
+    .thumb-wrap img { width:64px; height:64px; object-fit:cover; border-radius:.5rem; border:1px solid #e5e7eb; display:block; }
+    .thumb-wrap img.gif-thumb { object-fit:contain; background:#f3f4f6; }
+    .thumb-box { width:64px; height:64px; border-radius:.5rem; display:flex; align-items:center; justify-content:center; border:1px solid #e5e7eb; }
+    .file-badge { position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,.65); color:white; font-size:.58rem; font-weight:700; padding:1px 4px; border-radius:3px; text-transform:uppercase; letter-spacing:.04em; }
+    .alert { padding:1rem; border-radius:.5rem; margin-bottom:1rem; animation:slideIn .3s ease; }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-10px);} to{opacity:1;transform:translateY(0);} }
+    .alert-error { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+    .alert-success { background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; }
+    .icon-btn { padding:.5rem; border:none; background:transparent; cursor:pointer; border-radius:.5rem; transition:all .2s; flex-shrink:0; }
+    .icon-btn:hover { background:#f3f4f6; }
+    .lock-screen { min-height:100vh; background:linear-gradient(135deg,#0f172a 0%,#581c87 50%,#0f172a 100%); display:flex; align-items:center; justify-content:center; padding:1rem; }
+    .breadcrumb { display:flex; align-items:center; gap:.5rem; padding:.75rem; background:#f9fafb; border-radius:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .bc-item { color:#3b82f6; cursor:pointer; font-weight:500; }
+    .bc-item:hover { text-decoration:underline; }
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index:1000; padding:1rem; }
+    .modal-box { background:white; border-radius:1rem; padding:1.5rem; max-width:400px; width:100%; animation:pop .3s ease; }
+    .modal-box-dark { background:linear-gradient(135deg,#1e1b4b,#4c1d95); border-radius:1rem; padding:2rem; max-width:400px; width:100%; animation:pop .3s ease; color:white; }
+    .modal-box-dark .input { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.3); color:white; }
+    .modal-box-dark .input::placeholder { color:rgba(255,255,255,.5); }
+    .modal-box-dark .input:focus { border-color:#a78bfa; box-shadow:0 0 0 3px rgba(167,139,250,.3); }
+    .secret-err { background:rgba(239,68,68,.2); color:#fca5a5; border:1px solid rgba(239,68,68,.4); padding:.6rem 1rem; border-radius:.5rem; font-size:.9rem; margin-bottom:.75rem; }
+    @keyframes pop { from{opacity:0;transform:scale(.9);} to{opacity:1;transform:scale(1);} }
+    .pv-overlay { position:fixed; inset:0; background:rgba(0,0,0,.93); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2000; }
+    .pv-topbar { position:absolute; top:0; left:0; right:0; background:rgba(0,0,0,.78); backdrop-filter:blur(8px); color:white; padding:.7rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; z-index:1; }
+    .pv-name { font-weight:600; font-size:.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    .pv-actions { display:flex; align-items:center; gap:.5rem; flex-shrink:0; }
+    .pv-topbtn { background:rgba(255,255,255,.18); border:none; color:white; padding:.35rem .8rem; border-radius:.5rem; cursor:pointer; font-weight:600; font-size:.82rem; display:inline-flex; align-items:center; gap:.3rem; transition:background .2s; }
+    .pv-topbtn:hover { background:rgba(255,255,255,.32); }
+    .pv-close { background:rgba(255,255,255,.18); border:none; color:white; width:2rem; height:2rem; border-radius:50%; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+    .pv-close:hover { background:rgba(239,68,68,.7); }
+    .pv-body { margin-top:56px; width:100%; height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center; overflow:auto; padding:1rem; }
+    .pv-body img { max-width:95vw; max-height:calc(90vh - 56px); object-fit:contain; border-radius:.5rem; }
+    .pv-body video { max-width:95vw; max-height:calc(90vh - 56px); border-radius:.5rem; background:#000; outline:none; }
+    .pv-body iframe { width:95vw; height:calc(90vh - 56px); border:none; border-radius:.5rem; background:white; }
+    .pv-body pre { background:#1e1e1e; color:#d4d4d4; padding:1.5rem; border-radius:.5rem; max-width:90vw; max-height:calc(85vh - 56px); overflow:auto; font-family:'Courier New',monospace; font-size:.875rem; white-space:pre-wrap; word-break:break-all; }
+    .audio-card { background:#1f2937; border-radius:1rem; padding:2.5rem 2rem; text-align:center; width:min(420px,90vw); }
+    .audio-card p { color:white; font-weight:600; margin:1rem 0; }
+    .no-preview-card { background:#1f2937; color:#9ca3af; padding:3rem; border-radius:1rem; text-align:center; max-width:380px; }
+    .pv-arrow { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.15); border:none; color:white; padding:1rem .85rem; border-radius:.5rem; font-size:1.6rem; cursor:pointer; z-index:2; transition:background .2s; backdrop-filter:blur(4px); }
+    .pv-arrow:hover:not(:disabled) { background:rgba(255,255,255,.32); }
+    .pv-arrow:disabled { opacity:.18; cursor:default; }
+    .pv-prev { left:.5rem; }
+    .pv-next { right:.5rem; }
+    .pv-counter { color:rgba(255,255,255,.6); font-size:.8rem; white-space:nowrap; }
+    .gif-tag { background:#10b981; color:white; font-size:.7rem; font-weight:700; padding:2px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:.05em; }
+    .sync-row { display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem; }
+  .sync-status { font-size:.85rem; padding:.5rem .75rem; border-radius:.5rem; font-weight:500; }
+  .sync-status.ok   { background:#d1fae5; color:#065f46; }
+  .sync-status.err  { background:#fee2e2; color:#991b1b; }
+  .sync-status.busy { background:#eff6ff; color:#1d4ed8; }
+  .sync-btn { padding:.6rem 1rem; border:none; border-radius:.5rem; cursor:pointer; font-weight:600; font-size:.875rem; display:inline-flex; align-items:center; gap:.4rem; transition:all .2s; }
+  .sync-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .sync-btn-pull { background:#7c3aed; color:white; }
+  .sync-btn-pull:hover:not(:disabled) { background:#6d28d9; }
+  .sync-btn-push { background:#0f766e; color:white; }
+  .sync-btn-push:hover:not(:disabled) { background:#0d9488; }
+  .sync-btn-test { background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; }
+  .sync-btn-test:hover:not(:disabled) { background:#e5e7eb; }
+    .gap-1 { gap:.5rem; }
+    .mt-1 { margin-top:.5rem; }
+    .mb-1 { margin-bottom:.5rem; }
+    .mb-2 { margin-bottom:1rem; }
+    .text-center { text-align:center; }
+    .text-sm { font-size:.875rem; }
+    .text-gray { color:#6b7280; }
+    .hidden { display:none !important; }
+    svg { display:inline-block; vertical-align:middle; }
+    .offline-badge { position:fixed; bottom:1rem; right:1rem; background:#10b981; color:white; padding:.5rem 1rem; border-radius:2rem; font-size:.875rem; font-weight:600; box-shadow:0 4px 6px rgba(0,0,0,.1); z-index:100; }
+    .offline-badge.offline { background:#ef4444; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<div id="badge" class="offline-badge hidden"></div>
+<script>
+var S = {
+  isLocked: true,
+  password: '',
+  storedPassword: '',
+  files: [],
+  folders: [],
+  currentPath: [],
+  showPassword: false,
+  error: '',
+  success: '',
+  uploading: false,
+  biometricEnabled: false,
+  biometricAvailable: false,
+  showModal: null,
+  newFolderName: '',
+  pvFile: null,
+  pvIndex: -1,
+  showHidden: false,
+  secretPassword: '',
+  secretError: '',
+  syncHost: '',
+  syncRole: '',
+  syncStatus: '',
+  syncBusy: false
+};
+
+// IndexedDB
+var db = null;
+
+function initDB() {
+  return new Promise(function(res, rej) {
+    var r = indexedDB.open('MyFileLinkDB', 2);
+    r.onerror = function() { rej(r.error); };
+    r.onsuccess = function() { db = r.result; res(); };
+    r.onupgradeneeded = function(e) {
+      var d = e.target.result;
+      if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', { keyPath:'key' });
+      if (!d.objectStoreNames.contains('files')) d.createObjectStore('files', { keyPath:'id' }).createIndex('folderId','folderId',{ unique:false });
+      if (!d.objectStoreNames.contains('folders')) d.createObjectStore('folders', { keyPath:'id' }).createIndex('parentId','parentId',{ unique:false });
+    };
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise(function(res) {
+    var r = store.get(key);
+    r.onsuccess = function() { res(r.result || null); };
+    r.onerror = function() { res(null); };
+  });
+}
+
+function dbAll(store) {
+  return new Promise(function(res) {
+    var r = store.getAll();
+    r.onsuccess = function() { res(r.result || []); };
+    r.onerror = function() { res([]); };
+  });
+}
+
+function txDone(tx) {
+  return new Promise(function(res) { tx.oncomplete = res; tx.onerror = res; });
+}
+
+async function loadFromDB() {
+  if (!db) return;
+  var ss = db.transaction(['settings'], 'readonly').objectStore('settings');
+  var pw  = await dbGet(ss, 'password');
+  var bio = await dbGet(ss, 'biometric');
+  var spw = await dbGet(ss, 'secretPassword');
+  if (pw)  S.storedPassword  = pw.value;
+  if (bio) S.biometricEnabled = bio.value === 'true';
+  if (spw) S.secretPassword  = spw.value;
+  var sh = await dbGet(ss, 'syncHost'); if (sh) S.syncHost = sh.value;
+  S.files   = await dbAll(db.transaction(['files'],   'readonly').objectStore('files'));
+  S.folders = await dbAll(db.transaction(['folders'], 'readonly').objectStore('folders'));
+}
+
+async function saveSetting(key, val) {
+  if (!db) return;
+  var tx = db.transaction(['settings'], 'readwrite');
+  tx.objectStore('settings').put({ key:key, value:val });
+  await txDone(tx);
+}
+
+async function saveFiles() {
+  if (!db) return;
+  var tx = db.transaction(['files'], 'readwrite');
+  var st = tx.objectStore('files');
+  st.clear();
+  for (var i = 0; i < S.files.length; i++) st.add(S.files[i]);
+  await txDone(tx);
+}
+
+async function saveFolders() {
+  if (!db) return;
+  var tx = db.transaction(['folders'], 'readwrite');
+  var st = tx.objectStore('folders');
+  st.clear();
+  for (var i = 0; i < S.folders.length; i++) st.add(S.folders[i]);
+  await txDone(tx);
+}
+
+// File type helpers
+function isGif(file) {
+  // Check filename extension FIRST (most reliable - type can be empty on some browsers/OS)
+  if ((file.name || '').toLowerCase().endsWith('.gif')) return true;
+  return file.type === 'image/gif';
+}
+
+function fileCat(file) {
+  // Check filename extension for GIF first (type may be empty on some browsers)
+  if (isGif(file)) return 'image';
+  var t = file.type || '';
+  if (t.startsWith('image/')) return 'image';
+  if (t.startsWith('video/')) return 'video';
+  if (t.startsWith('audio/')) return 'audio';
+  if (t === 'application/pdf') return 'pdf';
+  if (t.startsWith('text/') || t.includes('json') || t.includes('javascript')) return 'text';
+  // Fallback: guess from extension
+  var ext = fileExt(file.name);
+  if (['jpg','jpeg','png','webp','bmp','svg','ico'].indexOf(ext) >= 0) return 'image';
+  if (['mp4','mov','avi','mkv','webm'].indexOf(ext) >= 0) return 'video';
+  if (['mp3','wav','ogg','m4a','flac'].indexOf(ext) >= 0) return 'audio';
+  if (ext === 'pdf') return 'pdf';
+  if (['txt','md','js','ts','json','html','css','csv','xml','yaml','yml'].indexOf(ext) >= 0) return 'text';
+  return 'other';
+}
+
+function fileExt(name) {
+  var p = (name || '').split('.');
+  return p.length > 1 ? p.pop().toLowerCase() : '';
+}
+
+var ICONS = {
+  image: '<svg width="32" height="32" fill="none" stroke="#10b981" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke-width="2"/><path d="M21 15l-5-5L5 21" stroke-width="2"/></svg>',
+  video: '<svg width="32" height="32" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24"><rect x="2" y="5" width="14" height="14" rx="2" stroke-width="2"/><path d="M22 8l-6 4 6 4V8z" stroke-width="2"/></svg>',
+  audio: '<svg width="32" height="32" fill="none" stroke="#ec4899" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" stroke-width="2"/><circle cx="6" cy="18" r="3" stroke-width="2"/><circle cx="18" cy="16" r="3" stroke-width="2"/></svg>',
+  pdf:   '<svg width="32" height="32" fill="none" stroke="#ef4444" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2"/><path d="M14 2v6h6M9 13h6M9 17h6" stroke-width="2"/></svg>',
+  text:  '<svg width="32" height="32" fill="none" stroke="#0ea5e9" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2"/><path d="M14 2v6h6M9 13h6M9 17h4" stroke-width="2"/></svg>',
+  other: '<svg width="32" height="32" fill="none" stroke="#6b7280" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke-width="2"/><path d="M13 2v7h7" stroke-width="2"/></svg>'
+};
+
+var BGCOL  = { image:'#ecfdf5', video:'#ede9fe', audio:'#fdf2f8', pdf:'#fef2f2', text:'#eff6ff', other:'#f3f4f6' };
+var LABELS = { image:'Photo', video:'Video', audio:'Audio', pdf:'PDF', text:'Text', other:'File' };
+
+function thumbHtml(file) {
+  var c = fileCat(file);
+  var e = fileExt(file.name) || c;
+  var badge = '<span class="file-badge">' + e + '</span>';
+  if (c === 'image') {
+    var cls = isGif(file) ? 'gif-thumb' : '';
+    return '<div class="thumb-wrap"><img src="' + file.data + '" class="' + cls + '" alt="">' + badge + '</div>';
+  }
+  return '<div class="thumb-wrap"><div class="thumb-box" style="background:' + BGCOL[c] + '">' + ICONS[c] + '</div>' + badge + '</div>';
+}
+
+// Preview
+function folderFiles() {
+  var fid = S.currentPath.length ? S.currentPath[S.currentPath.length - 1].id : null;
+  return S.files.filter(function(f) { return f.folderId === fid && (!f.hidden || S.showHidden); });
+}
+
+function openPreview(fileId) {
+  var all = folderFiles();
+  var idx = all.findIndex(function(f) { return String(f.id) === String(fileId); });
+  if (idx < 0) return;
+  S.pvFile = all[idx];
+  S.pvIndex = idx;
+  drawPv();
+}
+
+function closePv() {
+  S.pvFile = null;
+  S.pvIndex = -1;
+  var el = document.getElementById('pv');
+  if (el) el.remove();
+  document.removeEventListener('keydown', pvKey);
+}
+
+function navPv(d) {
+  var all = folderFiles();
+  var ni = S.pvIndex + d;
+  if (ni < 0 || ni >= all.length) return;
+  S.pvIndex = ni;
+  S.pvFile = all[ni];
+  drawPv();
+}
+
+function pvKey(e) {
+  if (e.key === 'Escape')     closePv();
+  if (e.key === 'ArrowLeft')  navPv(-1);
+  if (e.key === 'ArrowRight') navPv(1);
+}
+
+function pvBody(file) {
+  var c = fileCat(file);
+  if (c === 'image') {
+    // GIFs animate automatically in <img> - browser handles it natively
+    return '<img src="' + file.data + '" alt="' + esc(file.name) + '">';
+  }
+  if (c === 'video') {
+    return '<video controls autoplay playsinline><source src="' + file.data + '" type="' + esc(file.type) + '">Cannot play video.</video>';
+  }
+  if (c === 'audio') {
+    return '<div class="audio-card">' + ICONS.audio + '<p>' + esc(file.name) + '</p><audio controls autoplay style="width:100%"><source src="' + file.data + '" type="' + esc(file.type) + '"></audio></div>';
+  }
+  if (c === 'pdf') {
+    return '<iframe src="' + file.data + '" title="' + esc(file.name) + '"></iframe>';
+  }
+  if (c === 'text') {
+    var txt = '';
+    try { txt = decodeURIComponent(escape(atob((file.data || '').split(',')[1] || ''))); } catch(e) { txt = '(Cannot decode)'; }
+    return '<pre>' + txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>';
+  }
+  return '<div class="no-preview-card">' + ICONS.other + '<p style="color:white;font-weight:600;font-size:1rem;margin:.75rem 0;">' + esc(file.name) + '</p><p>No preview for .' + fileExt(file.name) + ' files</p><br><button class="pv-topbtn" id="pv-dl2">Download</button></div>';
+}
+
+function drawPv() {
+  var old = document.getElementById('pv');
+  if (old) old.remove();
+  document.removeEventListener('keydown', pvKey);
+  if (!S.pvFile) return;
+
+  var file  = S.pvFile;
+  var all   = folderFiles();
+  var total = all.length;
+  var idx   = S.pvIndex;
+  var gif   = isGif(file);
+
+  var el = document.createElement('div');
+  el.id = 'pv';
+  el.className = 'pv-overlay';
+  el.innerHTML =
+    '<div class="pv-topbar">'
+    + '<span class="pv-name">' + esc(file.name) + '</span>'
+    + '<div class="pv-actions">'
+    + (gif ? '<span class="gif-tag">GIF</span>' : '')
+    + '<span class="pv-counter">' + (idx + 1) + ' / ' + total + '</span>'
+    + '<button class="pv-topbtn" id="pv-dl">Download</button>'
+    + '<button class="pv-close" id="pv-x">&#x2715;</button>'
+    + '</div></div>'
+    + '<button class="pv-arrow pv-prev" id="pv-prev" ' + (idx === 0 ? 'disabled' : '') + '>&#8249;</button>'
+    + '<div class="pv-body">' + pvBody(file) + '</div>'
+    + '<button class="pv-arrow pv-next" id="pv-next" ' + (idx >= total - 1 ? 'disabled' : '') + '>&#8250;</button>';
+
+  document.body.appendChild(el);
+  document.getElementById('pv-x').onclick    = closePv;
+  document.getElementById('pv-dl').onclick   = function() { dlFile(file); };
+  document.getElementById('pv-prev').onclick = function() { navPv(-1); };
+  document.getElementById('pv-next').onclick = function() { navPv(1); };
+  var dl2 = document.getElementById('pv-dl2');
+  if (dl2) dl2.onclick = function() { dlFile(file); };
+  document.addEventListener('keydown', pvKey);
+}
+
+// Render
+function render() {
+  document.getElementById('app').innerHTML = S.isLocked ? renderLock() : renderMain();
+  attachListeners();
+}
+
+function renderLock() {
+  return '<div class="lock-screen"><div class="card" style="max-width:400px;width:100%;">'
+    + '<div class="text-center mb-2"><div style="display:inline-block;background:#f3e8ff;padding:1rem;border-radius:50%;">'
+    + '<svg width="48" height="48" fill="none" stroke="#7c3aed" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-width="2"/></svg>'
+    + '</div></div>'
+    + '<h1 style="font-size:2rem;font-weight:bold;text-align:center;margin-bottom:.5rem;">My File Link</h1>'
+    + '<p class="text-center text-gray mb-2">' + (S.storedPassword ? 'Enter your password to unlock' : 'Create a password to get started') + '</p>'
+    + (S.error ? '<div class="alert alert-error">' + esc(S.error) + '</div>' : '')
+    + '<div style="position:relative;margin-bottom:1rem;">'
+    + '<input type="' + (S.showPassword ? 'text' : 'password') + '" class="input" placeholder="Password" id="pwInput" value="' + esc(S.password) + '" autocomplete="current-password">'
+    + '<button class="icon-btn" id="togglePw" style="position:absolute;right:8px;top:8px;">'
+    + (S.showPassword
+        ? '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" stroke-width="2"/></svg>'
+        : '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>')
+    + '</button></div>'
+    + '<button class="btn btn-primary" style="width:100%;" id="loginBtn">' + (S.storedPassword ? 'Unlock' : 'Set Password &amp; Unlock') + '</button>'
+    + (S.biometricAvailable && S.biometricEnabled && S.storedPassword ? '<button class="btn btn-secondary mt-1" style="width:100%;" id="bioBtn">Biometric Unlock</button>' : '')
+    + '</div></div>';
+}
+
+function renderSecretModal() {
+  var isNew = !S.secretPassword;
+  if (S.showModal === 'changeSecret') {
+    return '<div class="modal"><div class="modal-box-dark">'
+      + '<h2 style="font-size:1.2rem;font-weight:bold;margin-bottom:1.25rem;text-align:center;">Change Secret Password</h2>'
+      + (S.secretError ? '<div class="secret-err">' + esc(S.secretError) + '</div>' : '')
+      + '<input type="password" class="input mb-1" placeholder="Current secret password" id="oldSecretInput">'
+      + '<input type="password" class="input mb-1" placeholder="New secret password" id="newSecretInput">'
+      + '<input type="password" class="input mb-2" placeholder="Confirm new password" id="confirmSecretInput">'
+      + '<div class="flex gap-1">'
+      + '<button class="btn btn-pink" style="flex:1;" id="confirmChangeBtn">Update Password</button>'
+      + '<button class="btn" style="flex:1;background:rgba(255,255,255,.15);color:white;" id="cancelSecretBtn">Cancel</button>'
+      + '</div></div></div>';
+  }
+  if (isNew) {
+    return '<div class="modal"><div class="modal-box-dark">'
+      + '<div style="text-align:center;margin-bottom:1.5rem;">'
+      + '<div style="display:inline-block;background:rgba(255,255,255,.1);padding:1rem;border-radius:50%;margin-bottom:.75rem;">'
+      + '<svg width="40" height="40" fill="none" stroke="#a78bfa" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-width="2"/></svg></div>'
+      + '<h2 style="font-size:1.3rem;font-weight:bold;margin-bottom:.4rem;">Create Secret Vault</h2>'
+      + '<p style="color:rgba(255,255,255,.65);font-size:.9rem;">Set a password to protect your hidden files.<br>Keep it different from your main password.</p>'
+      + '</div>'
+      + (S.secretError ? '<div class="secret-err">' + esc(S.secretError) + '</div>' : '')
+      + '<input type="password" class="input mb-1" placeholder="New secret password" id="secretPwA" autocomplete="new-password">'
+      + '<input type="password" class="input mb-2" placeholder="Confirm secret password" id="secretPwB" autocomplete="new-password">'
+      + '<div class="flex gap-1">'
+      + '<button class="btn btn-pink" style="flex:1;" id="setSecretBtn">Create Vault</button>'
+      + '<button class="btn" style="flex:1;background:rgba(255,255,255,.15);color:white;" id="cancelSecretBtn">Cancel</button>'
+      + '</div></div></div>';
+  }
+  return '<div class="modal"><div class="modal-box-dark">'
+    + '<div style="text-align:center;margin-bottom:1.5rem;">'
+    + '<div style="display:inline-block;background:rgba(255,255,255,.1);padding:1rem;border-radius:50%;margin-bottom:.75rem;">'
+    + '<svg width="40" height="40" fill="none" stroke="#a78bfa" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg></div>'
+    + '<h2 style="font-size:1.3rem;font-weight:bold;margin-bottom:.4rem;">Secret Vault</h2>'
+    + '<p style="color:rgba(255,255,255,.65);font-size:.9rem;">Enter your secret password to reveal hidden files.</p>'
+    + '</div>'
+    + (S.secretError ? '<div class="secret-err">' + esc(S.secretError) + '</div>' : '')
+    + '<input type="password" class="input mb-2" placeholder="Secret password" id="secretPwA" autocomplete="current-password">'
+    + '<div class="flex gap-1">'
+    + '<button class="btn btn-pink" style="flex:1;" id="unlockSecretBtn">Reveal Files</button>'
+    + '<button class="btn" style="flex:1;background:rgba(255,255,255,.15);color:white;" id="cancelSecretBtn">Cancel</button>'
+    + '</div>'
+    + '<button id="changeSecretLinkBtn" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;margin-top:1rem;width:100%;text-align:center;">Change secret password</button>'
+    + '</div></div>';
+}
+
+function renderSyncModal() {
+  var st   = S.syncStatus;
+  var busy = S.syncBusy;
+  var stHtml = st ? '<div style="margin:.5rem 0;padding:.6rem .75rem;border-radius:.5rem;font-size:.85rem;font-weight:500;background:'
+    + (st.startsWith('Error') ? '#fee2e2;color:#991b1b' : (busy ? '#eff6ff;color:#1d4ed8' : '#d1fae5;color:#065f46'))
+    + ';">' + esc(st) + '</div>' : '';
+
+  var hasHost = !!S.syncHost;
+
+  // PC host view - show QR + IP
+  if (S.syncRole === 'host') {
+    return '<div class="modal"><div class="modal-box" style="max-width:420px;text-align:center;">'
+      + '<h2 style="font-size:1.1rem;font-weight:bold;margin-bottom:.25rem;">Sync - PC</h2>'
+      + '<p style="color:#6b7280;font-size:.82rem;margin-bottom:.75rem;">Scan this QR code with your phone, or type the address.</p>'
+      + '<div id="qr-wrap" style="display:inline-block;padding:10px;background:white;border:2px solid #e5e7eb;border-radius:.5rem;margin-bottom:.5rem;"></div>'
+      + '<div style="font-family:monospace;font-size:.9rem;color:#374151;font-weight:600;margin-bottom:.75rem;" id="host-url"></div>'
+      + stHtml
+      + '<button id="closeSyncBtn" style="margin-top:.5rem;width:100%;padding:.6rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Close</button>'
+      + '</div></div>';
+  }
+
+  // Phone view - enter address or scan done
+  if (S.syncRole === 'phone') {
+    return '<div class="modal"><div class="modal-box" style="max-width:420px;">'
+      + '<h2 style="font-size:1.1rem;font-weight:bold;margin-bottom:.25rem;">Sync - Phone</h2>'
+      + '<p style="color:#6b7280;font-size:.82rem;margin-bottom:.75rem;">Enter the address shown on your PC, then choose what to sync.</p>'
+      + '<div style="display:flex;gap:.5rem;margin-bottom:.5rem;">'
+      + '<input class="input" id="syncHostInput" placeholder="http://192.168.x.x:8080" value="' + esc(S.syncHost) + '" style="flex:1;font-size:.875rem;">'
+      + '<button class="sync-btn sync-btn-test" id="syncTestBtn" ' + (busy ? 'disabled' : '') + '>Test</button>'
+      + '</div>'
+      + stHtml
+      + '<div style="display:flex;gap:.5rem;margin:.5rem 0;">'
+      + '<button class="sync-btn sync-btn-pull" id="syncPullBtn" style="flex:1;" ' + (!S.syncHost || busy ? 'disabled' : '') + '>Get from PC</button>'
+      + '<button class="sync-btn sync-btn-push" id="syncPushBtn" style="flex:1;" ' + (!S.syncHost || busy ? 'disabled' : '') + '>Send to PC</button>'
+      + '</div>'
+      + '<p style="font-size:.75rem;color:#6b7280;margin-bottom:.75rem;"><strong>Get</strong> = download PC files to phone &nbsp;|&nbsp; <strong>Send</strong> = upload phone files to PC</p>'
+      + '<button id="closeSyncBtn" style="width:100%;padding:.6rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Close</button>'
+      + '</div></div>';
+  }
+
+  // Default - choose role
+  return '<div class="modal"><div class="modal-box" style="max-width:420px;">'
+    + '<h2 style="font-size:1.2rem;font-weight:bold;margin-bottom:.25rem;">WiFi Sync</h2>'
+    + '<p style="color:#6b7280;font-size:.85rem;margin-bottom:1rem;">Both devices must be on the same WiFi. Which device is this?</p>'
+    + '<div style="display:flex;gap:.75rem;flex-direction:column;margin-bottom:.75rem;">'
+
+    + '<button id="roleHostBtn" style="padding:1rem;border:2px solid #7c3aed;border-radius:.75rem;background:#faf5ff;cursor:pointer;text-align:left;width:100%;">'
+    + '<div style="font-weight:700;color:#6d28d9;">This is my PC</div>'
+    + '<div style="font-size:.8rem;color:#7c3aed;margin-top:.2rem;">Shows a QR code and address. Run start.py first, then click this.</div>'
+    + '</button>'
+
+    + '<button id="rolePhoneBtn" style="padding:1rem;border:2px solid #3b82f6;border-radius:.75rem;background:#eff6ff;cursor:pointer;text-align:left;width:100%;">'
+    + '<div style="font-weight:700;color:#1d4ed8;">This is my Phone</div>'
+    + '<div style="font-size:.8rem;color:#3b82f6;margin-top:.2rem;">Enter the address shown on your PC to connect.</div>'
+    + '</button>'
+    + '</div>'
+
+    + '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:.5rem;padding:.6rem .75rem;font-size:.78rem;color:#92400e;margin-bottom:.75rem;">'
+    + '<strong>First time on PC?</strong> Click below to download start.py, then double-click it.'
+    + '</div>'
+    + '<button id="dlStartBtn" style="width:100%;padding:.6rem;border:1px solid #7c3aed;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#7c3aed;margin-bottom:.5rem;">Download start.py for PC</button>'
+    + '<button id="closeSyncBtn" style="width:100%;padding:.6rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Cancel</button>'
+    + '</div></div>';
+}
+
+function renderMain() {
+  var fid = S.currentPath.length ? S.currentPath[S.currentPath.length - 1].id : null;
+  var allFolderFiles = S.files.filter(function(f) { return f.folderId === fid; });
+  var cFiles   = allFolderFiles.filter(function(f) { return !f.hidden || S.showHidden; });
+  var hiddenN  = allFolderFiles.filter(function(f) { return f.hidden; }).length;
+  var cFolders = S.folders.filter(function(f) { return f.parentId === fid; });
+
+  var crumb = '<span class="bc-item" data-idx="-1">'
+    + '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke-width="2"/></svg>Home</span>'
+    + S.currentPath.map(function(f, i) {
+        return '<span style="color:#9ca3af;">&rsaquo;</span><span class="bc-item" data-idx="' + i + '">' + esc(f.name) + '</span>';
+      }).join('');
+
+  var folderRows = cFolders.map(function(f) {
+    return '<div class="folder-item" data-fid="' + f.id + '">'
+      + '<svg width="48" height="48" fill="none" stroke="#3b82f6" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke-width="2"/></svg>'
+      + '<div style="flex:1;min-width:0;"><div style="font-weight:600;color:#1f2937;">' + esc(f.name) + '</div>'
+      + '<div class="text-sm text-gray">' + fCount(f.id) + ' items</div></div>'
+      + '<button class="icon-btn del-folder" data-id="' + f.id + '" title="Delete folder" style="color:#ef4444;">'
+      + '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-width="2"/></svg>'
+      + '</button></div>';
+  }).join('');
+
+  var eyeOpen = '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>';
+  var eyeOff  = '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" stroke-width="2"/></svg>';
+  var trashSvg = '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-width="2"/></svg>';
+  var dlSvg    = '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-width="2"/></svg>';
+
+  var fileRows = cFiles.map(function(f) {
+    var isRevealed = f.hidden && S.showHidden;
+    var blur = isRevealed ? 'filter:blur(6px);pointer-events:none;user-select:none;' : '';
+    var rowStyle = isRevealed ? 'opacity:.65;border-color:#f9a8d4;background:#fff1f2;' : '';
+    var gif = isGif(f);
+    var label = f.hidden ? 'Hidden' : (gif ? 'GIF' : (LABELS[fileCat(f)] || 'File'));
+    var labelColor = f.hidden ? '#ec4899' : (gif ? '#10b981' : '#7c3aed');
+    return '<div class="file-item" data-file="' + f.id + '" style="' + rowStyle + '">'
+      + '<div style="' + blur + '">' + thumbHtml(f) + '</div>'
+      + '<div style="flex:1;min-width:0;' + blur + '">'
+      + '<div style="font-weight:600;color:#1f2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (isRevealed ? '[hidden]' : esc(f.name)) + '</div>'
+      + '<div class="text-sm text-gray">' + (isRevealed ? 'hidden' : fmtSize(f.size)) + '</div>'
+      + '<div class="text-sm" style="color:' + labelColor + ';font-weight:500;">' + label + '</div>'
+      + '</div>'
+      + '<div class="flex gap-1">'
+      + '<button class="icon-btn hide-btn" data-id="' + f.id + '" title="' + (f.hidden ? 'Unhide' : 'Hide') + '" style="color:' + (f.hidden ? '#ec4899' : '#9ca3af') + ';">' + (f.hidden ? eyeOff : eyeOpen) + '</button>'
+      + (isRevealed ? '' : '<button class="icon-btn pv-open" data-id="' + f.id + '" title="Preview" style="color:#7c3aed;">' + eyeOpen + '</button>')
+      + '<button class="icon-btn dl-btn" data-id="' + f.id + '" title="Download" style="color:#3b82f6;">' + dlSvg + '</button>'
+      + '<button class="icon-btn del-file" data-id="' + f.id + '" title="Delete" style="color:#ef4444;">' + trashSvg + '</button>'
+      + '</div></div>';
+  }).join('');
+
+  var empty = (cFolders.length === 0 && cFiles.length === 0 && hiddenN === 0)
+    ? '<div style="padding:3rem;text-align:center;color:#9ca3af;">'
+      + '<svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto;opacity:.4;display:block;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke-width="2"/></svg>'
+      + '<p style="margin-top:1rem;font-size:1.1rem;">Empty folder</p>'
+      + '<p class="text-sm mt-1">Create a folder or upload files to get started</p></div>'
+    : '';
+
+  var vaultLabel = S.showHidden
+    ? 'Lock Secret Vault'
+    : ('Secret Vault' + (hiddenN > 0 ? ' (' + hiddenN + ')' : ''));
+  var vaultStyle = S.showHidden
+    ? 'background:#fdf2f8;color:#db2777;border:1px solid #f9a8d4;'
+    : 'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;';
+
+  var modal = '';
+  if (S.showModal === 'newFolder') {
+    modal = '<div class="modal"><div class="modal-box">'
+      + '<h2 style="font-size:1.25rem;font-weight:bold;margin-bottom:1rem;">Create New Folder</h2>'
+      + '<input type="text" class="input mb-2" placeholder="Folder name" id="folderNameInput" value="' + esc(S.newFolderName) + '">'
+      + '<div class="flex gap-1">'
+      + '<button class="btn btn-primary" style="flex:1;" id="createFolderBtn">Create</button>'
+      + '<button class="btn" style="flex:1;background:#e5e7eb;color:#1f2937;" id="cancelModalBtn">Cancel</button>'
+      + '</div></div></div>';
+  } else if (S.showModal === 'secret' || S.showModal === 'changeSecret') {
+    modal = renderSecretModal();
+  } else if (S.showModal === 'sync') {
+    modal = renderSyncModal();
+  }
+
+  var bioRow = S.biometricAvailable
+    ? '<div class="card flex" style="align-items:center;justify-content:space-between;">'
+      + '<span style="font-weight:600;">Biometric Login</span>'
+      + '<label style="cursor:pointer;"><input type="checkbox" id="bioToggle" ' + (S.biometricEnabled ? 'checked' : '') + '></label></div>'
+    : '';
+
+  return '<div class="header"><div class="container flex" style="align-items:center;justify-content:space-between;">'
+    + '<div class="flex gap-1" style="align-items:center;">'
+    + '<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1" stroke-width="2"/></svg>'
+    + '<h1 style="font-size:1.25rem;font-weight:bold;">My File Link</h1></div>'
+    + '<button class="btn" style="background:rgba(255,255,255,.2);" id="lockBtn">'
+    + '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke-width="2"/></svg>Lock</button>'
+    + '</div></div>'
+    + '<div class="container" style="margin-top:1rem;">'
+    + bioRow
+    + (S.error   ? '<div class="alert alert-error">'   + esc(S.error)   + '</div>' : '')
+    + (S.success ? '<div class="alert alert-success">' + esc(S.success) + '</div>' : '')
+    + '<div class="breadcrumb">' + crumb + '</div>'
+    + '<div class="card">'
+    + '<div class="flex gap-1 mb-2" style="flex-wrap:wrap;">'
+    + '<button class="btn btn-primary" id="newFolderBtn">'
+    + '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke-width="2"/><path d="M12 11v6M9 14h6" stroke-width="2"/></svg>New Folder</button>'
+    + '<label class="btn btn-secondary" style="cursor:pointer;">'
+    + '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-width="2"/></svg>'
+    + (S.uploading ? 'Uploading...' : 'Upload Files')
+    + '<input type="file" multiple accept="*/*" class="hidden" id="fileInput" ' + (S.uploading ? 'disabled' : '') + '></label>'
+    + '<button class="btn" id="vaultBtn" style="' + vaultStyle + '">'
+    + '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-width="2"/></svg>'
+    + vaultLabel + '</button>'
+    + '<button class="btn" id="syncModalBtn" style="background:#f0fdf4;color:#0f766e;border:1px solid #a7f3d0;">'
+    + '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6" stroke-width="2"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke-width="2"/></svg>'
+    + (S.syncHost ? 'Sync (On)' : 'Sync') + '</button>'
+    + '</div>'
+    + '<div>' + empty + folderRows + fileRows + '</div>'
+    + '</div></div>' + modal;
+}
+
+// Listeners
+function attachListeners() {
+  var Q = function(id) { return document.getElementById(id); };
+
+  var pwInput     = Q('pwInput');
+  var togglePw    = Q('togglePw');
+  var loginBtn    = Q('loginBtn');
+  var bioBtn      = Q('bioBtn');
+  var lockBtn     = Q('lockBtn');
+  var fileInput   = Q('fileInput');
+  var bioToggle   = Q('bioToggle');
+  var newFolderBtn    = Q('newFolderBtn');
+  var folderNameInput = Q('folderNameInput');
+  var createFolderBtn = Q('createFolderBtn');
+  var cancelModalBtn  = Q('cancelModalBtn');
+  var vaultBtn        = Q('vaultBtn');
+  var syncModalBtn    = Q('syncModalBtn');
+  var setSecretBtn    = Q('setSecretBtn');
+  var unlockSecretBtn = Q('unlockSecretBtn');
+  var cancelSecretBtn = Q('cancelSecretBtn');
+  var changeSecretLinkBtn = Q('changeSecretLinkBtn');
+  var confirmChangeBtn    = Q('confirmChangeBtn');
+
+  if (pwInput) {
+    pwInput.addEventListener('input', function(e) { S.password = e.target.value; });
+    pwInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
+    setTimeout(function() { pwInput.focus(); }, 80);
+  }
+  if (togglePw) togglePw.addEventListener('click', function() {
+    S.showPassword = !S.showPassword; render();
+    setTimeout(function() { var p = Q('pwInput'); if (p) p.focus(); }, 80);
+  });
+  if (loginBtn) loginBtn.addEventListener('click', doLogin);
+  if (bioBtn)   bioBtn.addEventListener('click', doBio);
+  if (lockBtn)  lockBtn.addEventListener('click', doLock);
+  if (fileInput) fileInput.addEventListener('change', handleUpload);
+  if (bioToggle) bioToggle.addEventListener('change', function(e) {
+    S.biometricEnabled = e.target.checked;
+    saveSetting('biometric', S.biometricEnabled.toString());
+  });
+  if (newFolderBtn) newFolderBtn.addEventListener('click', function() {
+    S.showModal = 'newFolder'; S.newFolderName = ''; render();
+    setTimeout(function() { var el = Q('folderNameInput'); if (el) el.focus(); }, 80);
+  });
+  if (folderNameInput) {
+    folderNameInput.addEventListener('input', function(e) { S.newFolderName = e.target.value; });
+    folderNameInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') doCreateFolder(); });
+  }
+  if (createFolderBtn) createFolderBtn.addEventListener('click', doCreateFolder);
+  if (cancelModalBtn)  cancelModalBtn.addEventListener('click', function() { S.showModal = null; render(); });
+
+  if (syncModalBtn) syncModalBtn.addEventListener('click', function() {
+    S.showModal = 'sync'; S.syncRole = ''; S.syncStatus = ''; render();
+  });
+  var roleHostBtn   = Q('roleHostBtn');
+  var rolePhoneBtn  = Q('rolePhoneBtn');
+  var dlStartBtn    = Q('dlStartBtn');
+  var syncHostInput = Q('syncHostInput');
+  var syncTestBtn   = Q('syncTestBtn');
+  var syncPullBtn   = Q('syncPullBtn');
+  var syncPushBtn   = Q('syncPushBtn');
+  var closeSyncBtn  = Q('closeSyncBtn');
+  if (roleHostBtn)   roleHostBtn.addEventListener('click',  doSyncHostRole);
+  if (rolePhoneBtn)  rolePhoneBtn.addEventListener('click', function() { S.syncRole='phone'; render(); setTimeout(function(){var el=Q('syncHostInput');if(el)el.focus();},80); });
+  if (dlStartBtn)    dlStartBtn.addEventListener('click',   downloadStartPy);
+  if (syncHostInput) syncHostInput.addEventListener('input', function(e) { S.syncHost = e.target.value.trim(); });
+  if (syncTestBtn)   syncTestBtn.addEventListener('click',  doSyncTest);
+  if (syncPullBtn)   syncPullBtn.addEventListener('click',  doSyncPull);
+  if (syncPushBtn)   syncPushBtn.addEventListener('click',  doSyncPush);
+  if (closeSyncBtn)  closeSyncBtn.addEventListener('click', function() { S.showModal=null; S.syncStatus=''; render(); });
+  // draw QR after host modal renders
+  if (S.syncRole==='host') drawSyncQR();
+
+  if (vaultBtn) vaultBtn.addEventListener('click', function() {
+    if (S.showHidden) {
+      S.showHidden = false; render();
+    } else {
+      S.secretError = ''; S.showModal = 'secret'; render();
+      setTimeout(function() { var el = Q('secretPwA'); if (el) el.focus(); }, 80);
+    }
+  });
+  if (setSecretBtn)    setSecretBtn.addEventListener('click', doSetSecret);
+  if (unlockSecretBtn) unlockSecretBtn.addEventListener('click', doUnlockSecret);
+  if (cancelSecretBtn) cancelSecretBtn.addEventListener('click', function() {
+    S.showModal = null; S.secretError = ''; render();
+  });
+  if (changeSecretLinkBtn) changeSecretLinkBtn.addEventListener('click', function() {
+    S.showModal = 'changeSecret'; S.secretError = ''; render();
+    setTimeout(function() { var el = Q('oldSecretInput'); if (el) el.focus(); }, 80);
+  });
+  if (confirmChangeBtn) confirmChangeBtn.addEventListener('click', doChangeSecret);
+
+  // Enter key in secret inputs
+  var onSecretEnter = function(fn) {
+    return function(e) { if (e.key === 'Enter') fn(); };
+  };
+  var spwA = Q('secretPwA'), spwB = Q('secretPwB');
+  if (spwA) spwA.addEventListener('keypress', onSecretEnter(S.secretPassword ? doUnlockSecret : doSetSecret));
+  if (spwB) spwB.addEventListener('keypress', onSecretEnter(doSetSecret));
+  var oldSec = Q('oldSecretInput'), newSec = Q('newSecretInput'), confSec = Q('confirmSecretInput');
+  if (oldSec)  oldSec.addEventListener('keypress',  onSecretEnter(doChangeSecret));
+  if (newSec)  newSec.addEventListener('keypress',  onSecretEnter(doChangeSecret));
+  if (confSec) confSec.addEventListener('keypress', onSecretEnter(doChangeSecret));
+
+  // Breadcrumbs
+  document.querySelectorAll('.bc-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var i = parseInt(el.dataset.idx);
+      S.currentPath = i === -1 ? [] : S.currentPath.slice(0, i + 1);
+      S.error = ''; S.success = ''; render();
+    });
+  });
+
+  // Open folder
+  document.querySelectorAll('.folder-item').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      if (e.target.closest('.del-folder')) return;
+      var f = S.folders.find(function(f) { return String(f.id) === String(el.dataset.fid); });
+      if (f) { S.currentPath.push(f); S.error = ''; S.success = ''; render(); }
+    });
+  });
+
+  // Click file row to preview
+  document.querySelectorAll('.file-item').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      if (e.target.closest('.pv-open') || e.target.closest('.dl-btn') || e.target.closest('.del-file') || e.target.closest('.hide-btn')) return;
+      var f = S.files.find(function(f) { return String(f.id) === String(el.dataset.file); });
+      if (!f || f.hidden) return;
+      openPreview(el.dataset.file);
+    });
+  });
+
+  document.querySelectorAll('.pv-open').forEach(function(b) {
+    b.addEventListener('click', function(e) { e.stopPropagation(); openPreview(b.dataset.id); });
+  });
+
+  document.querySelectorAll('.dl-btn').forEach(function(b) {
+    b.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var f = S.files.find(function(f) { return String(f.id) === String(b.dataset.id); });
+      if (f) dlFile(f);
+    });
+  });
+
+  document.querySelectorAll('.hide-btn').forEach(function(b) {
+    b.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      await toggleHide(b.dataset.id);
+    });
+  });
+
+  document.querySelectorAll('.del-file').forEach(function(b) {
+    b.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      if (!confirm('Delete this file?')) return;
+      S.files = S.files.filter(function(f) { return String(f.id) !== String(b.dataset.id); });
+      await saveFiles(); flash('File deleted');
+    
+    });
+  });
+
+  document.querySelectorAll('.del-folder').forEach(function(b) {
+    b.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      if (!confirm('Delete this folder and all its contents?')) return;
+      delFolder(b.dataset.id);
+      await saveFolders(); await saveFiles(); flash('Folder deleted');
+    });
+  });
+}
+
+// Actions
+async function doLogin() {
+  if (!S.password.trim()) { S.error = 'Please enter a password'; render(); return; }
+  if (!S.storedPassword) {
+    S.storedPassword = S.password;
+    await saveSetting('password', S.password);
+    S.isLocked = false; S.password = ''; S.error = ''; render();
+  } else if (S.password === S.storedPassword) {
+    S.isLocked = false; S.password = ''; S.error = ''; render();
+  } else {
+    S.error = 'Incorrect password'; S.password = ''; render();
+  }
+}
+
+function doLock() {
+  S.isLocked = true; S.password = ''; S.error = ''; S.success = '';
+  S.currentPath = []; S.showHidden = false;
+  closePv(); render();
+}
+
+async function doBio() {
+  try {
+    var c = await navigator.credentials.get({ publicKey:{ challenge:new Uint8Array(32), timeout:60000, userVerification:'required' } });
+    if (c) { S.isLocked = false; S.error = ''; render(); }
+  } catch(e) { S.error = 'Biometric failed or cancelled'; render(); }
+}
+
+async function doCreateFolder() {
+  if (!S.newFolderName.trim()) { S.error = 'Please enter a folder name'; render(); return; }
+  var pid = S.currentPath.length ? S.currentPath[S.currentPath.length - 1].id : null;
+  S.folders.push({ id:Date.now() + Math.random(), name:S.newFolderName.trim(), parentId:pid, created:new Date().toISOString() });
+  await saveFolders(); S.showModal = null; S.newFolderName = ''; flash('Folder created');
+}
+
+async function doSetSecret() {
+  var a = (document.getElementById('secretPwA') || {}).value || '';
+  var b = (document.getElementById('secretPwB') || {}).value || '';
+  if (!a.trim()) { S.secretError = 'Please enter a password'; render(); return; }
+  if (a !== b)   { S.secretError = 'Passwords do not match'; render(); return; }
+  S.secretPassword = a;
+  await saveSetting('secretPassword', a);
+  S.showHidden = true; S.showModal = null; S.secretError = '';
+  flash('Secret vault created and unlocked');
+}
+
+async function doUnlockSecret() {
+  var val = (document.getElementById('secretPwA') || {}).value || '';
+  if (val === S.secretPassword) {
+    S.showHidden = true; S.showModal = null; S.secretError = ''; render();
+  } else {
+    S.secretError = 'Wrong password, try again'; render();
+    setTimeout(function() { var el = document.getElementById('secretPwA'); if (el) { el.value = ''; el.focus(); } }, 50);
+  }
+}
+
+async function doChangeSecret() {
+  var oldVal  = (document.getElementById('oldSecretInput')     || {}).value || '';
+  var newVal  = (document.getElementById('newSecretInput')     || {}).value || '';
+  var confVal = (document.getElementById('confirmSecretInput') || {}).value || '';
+  if (oldVal !== S.secretPassword) { S.secretError = 'Current password is incorrect'; render(); return; }
+  if (!newVal.trim())               { S.secretError = 'New password cannot be empty'; render(); return; }
+  if (newVal !== confVal)           { S.secretError = 'New passwords do not match'; render(); return; }
+  S.secretPassword = newVal;
+  await saveSetting('secretPassword', newVal);
+  S.showModal = null; S.secretError = '';
+  flash('Secret password updated');
+}
+
+async function handleUpload(e) {
+  S.uploading = true; S.error = ''; render();
+  var fid = S.currentPath.length ? S.currentPath[S.currentPath.length - 1].id : null;
+  var files = Array.from(e.target.files);
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    try {
+      // GIFs MUST skip canvas - canvas only captures frame 1 and destroys animation.
+      // Detect by filename first (more reliable than MIME type on mobile/some OS).
+      var gif = isGif(file);
+      var img = gif || file.type.startsWith('image/');
+      var data = (img && !gif) ? await compressImage(file) : await readDataURL(file);
+      // Store the original type; for GIFs whose type is empty, force it
+      var type = file.type || (gif ? 'image/gif' : 'application/octet-stream');
+      S.files.push({ id:Date.now() + Math.random(), name:file.name, size:file.size, type:type, data:data, date:new Date().toISOString(), folderId:fid, hidden:false });
+    } catch(err) { S.error = 'Failed to upload ' + file.name; }
+  }
+  await saveFiles(); S.uploading = false; e.target.value = '';
+  flash(files.length + ' file(s) uploaded');
+
+}
+
+function delFolder(fid) {
+  S.files   = S.files.filter(function(f) { return String(f.folderId) !== String(fid); });
+  S.folders.filter(function(f) { return String(f.parentId) === String(fid); }).forEach(function(s) { delFolder(s.id); });
+  S.folders = S.folders.filter(function(f) { return String(f.id) !== String(fid); });
+}
+
+function flash(msg) { S.success = msg; render(); setTimeout(function() { S.success = ''; render(); }, 3000); }
+function dlFile(file) { var a = document.createElement('a'); a.href = file.data; a.download = file.name; a.click(); }
+
+async function toggleHide(fileId) {
+  var f = S.files.find(function(f) { return String(f.id) === String(fileId); });
+  if (!f) return;
+  f.hidden = !f.hidden;
+  await saveFiles(); render();
+}
+
+// Utils
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtSize(b) { if (!b) return '0 B'; if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1) + ' KB'; return (b/1048576).toFixed(1) + ' MB'; }
+function fCount(fid) {
+  var n = S.files.filter(function(f) { return f.folderId === fid; }).length;
+  S.folders.filter(function(f) { return f.parentId === fid; }).forEach(function(s) { n += fCount(s.id); });
+  return n;
+}
+
+function compressImage(file) {
+  return new Promise(function(res) {
+    var r = new FileReader();
+    r.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var W = 1200, w = img.width, h = img.height;
+        if (w > W) { h = h * W / w; w = W; }
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        c.toBlob(function(blob) {
+          var r2 = new FileReader();
+          r2.onloadend = function() { res(r2.result); };
+          r2.readAsDataURL(blob);
+        }, 'image/jpeg', 0.75);
+      };
+      img.src = ev.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+function readDataURL(file) {
+  return new Promise(function(res) {
+    var r = new FileReader();
+    r.onload = function(e) { res(e.target.result); };
+    r.readAsDataURL(file);
+  });
+}
+
+window.addEventListener('online', function() {
+  var b = document.getElementById('badge');
+  if (!b) return;
+  b.textContent = 'Online';
+  b.classList.remove('offline', 'hidden');
+  setTimeout(function() { b.classList.add('hidden'); }, 3000);
+});
+window.addEventListener('offline', function() {
+  var b = document.getElementById('badge');
+  if (!b) return;
+  b.textContent = 'Offline - files saved locally';
+  b.classList.add('offline');
+  b.classList.remove('hidden');
+});
+
+async function checkBio() {
+  try {
+    if (window.PublicKeyCredential)
+      S.biometricAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch(e) { S.biometricAvailable = false; }
+}
+
+// WiFi Sync
+var START_PY_LINES = ["#!/usr/bin/env python3", "# My File Link - WiFi Sync Server", "# Put this file in the SAME FOLDER as index.html", "# Double-click it to start, or run: python start.py", "import http.server, json, socket, os, threading, urllib.parse, webbrowser", "from datetime import datetime", "PORT = 8080", "DIR = os.path.dirname(os.path.abspath(__file__))", "HTML = os.path.join(DIR, 'index.html')", "DATA = os.path.join(DIR, 'myfilelink_data.json')", "store = {'files': [], 'folders': []}", "lock = threading.Lock()", "def load():", "    global store", "    if os.path.exists(DATA):", "        try:", "            with open(DATA, 'r', encoding='utf-8') as f:", "                store = json.load(f)", "            print('  Loaded ' + str(len(store.get('files', []))) + ' files.')", "        except Exception as e:", "            print('  Warning: ' + str(e))", "            store = {'files': [], 'folders': []}", "def save():", "    with open(DATA, 'w', encoding='utf-8') as f:", "        json.dump(store, f)", "def get_ip():", "    try:", "        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)", "        s.connect(('8.8.8.8', 80))", "        ip = s.getsockname()[0]", "        s.close()", "        return ip", "    except:", "        return '127.0.0.1'", "class H(http.server.BaseHTTPRequestHandler):", "    def log_message(self, f, *a):", "        print('  [' + datetime.now().strftime('%H:%M:%S') + '] ' + f % a)", "    def cors(self):", "        self.send_header('Access-Control-Allow-Origin', '*')", "        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')", "        self.send_header('Access-Control-Allow-Headers', 'Content-Type')", "    def send_json(self, code, data):", "        b = json.dumps(data).encode()", "        self.send_response(code)", "        self.send_header('Content-Type', 'application/json')", "        self.send_header('Content-Length', len(b))", "        self.cors()", "        self.end_headers()", "        self.wfile.write(b)", "    def read_body(self):", "        n = int(self.headers.get('Content-Length', 0))", "        return json.loads(self.rfile.read(n)) if n else {}", "    def do_OPTIONS(self):", "        self.send_response(200)", "        self.cors()", "        self.end_headers()", "    def do_GET(self):", "        p = urllib.parse.urlparse(self.path).path", "        if p in ('/', '/index.html'):", "            if not os.path.exists(HTML):", "                self.send_response(404)", "                self.end_headers()", "                self.wfile.write(b'Put index.html in the same folder as start.py')", "                return", "            with open(HTML, 'rb') as f:", "                c = f.read()", "            self.send_response(200)", "            self.send_header('Content-Type', 'text/html; charset=utf-8')", "            self.send_header('Content-Length', len(c))", "            self.cors()", "            self.end_headers()", "            self.wfile.write(c)", "        elif p == '/ping':", "            with lock:", "                self.send_json(200, {'ok': True, 'files': len(store.get('files', [])), 'folders': len(store.get('folders', []))})", "        elif p == '/pull':", "            with lock:", "                self.send_json(200, {'files': store.get('files', []), 'folders': store.get('folders', [])})", "        else:", "            self.send_json(404, {'error': 'not found'})", "    def do_POST(self):", "        p = urllib.parse.urlparse(self.path).path", "        if p == '/push':", "            body = self.read_body()", "            with lock:", "                ef = {str(f['id']) for f in store.get('files', [])}", "                ed = {str(f['id']) for f in store.get('folders', [])}", "                af = ad = 0", "                for f in body.get('files', []):", "                    if str(f.get('id', '')) not in ef:", "                        store.setdefault('files', []).append(f)", "                        af += 1", "                for f in body.get('folders', []):", "                    if str(f.get('id', '')) not in ed:", "                        store.setdefault('folders', []).append(f)", "                        ad += 1", "                save()", "            self.send_json(200, {'ok': True, 'added_files': af, 'added_folders': ad, 'total': len(store.get('files', []))})", "        else:", "            self.send_json(404, {'error': 'not found'})", "load()", "ip = get_ip()", "srv = http.server.HTTPServer(('0.0.0.0', PORT), H)", "print()", "print('=' * 52)", "print('  My File Link - Sync Server running!')", "print('=' * 52)", "print()", "print('  On your PHONE, open the app, tap Sync,')", "print('  choose This is my Phone, and enter:')", "print()", "print('    http://' + ip + ':' + str(PORT))", "print()", "print('  On your PC browser, the app is at:')", "print('    http://' + ip + ':' + str(PORT))", "print()", "print('  Press Ctrl+C to stop.')", "print('=' * 52)", "threading.Timer(1.0, lambda: webbrowser.open('http://' + ip + ':' + str(PORT))).start()", "try:", "    srv.serve_forever()", "except KeyboardInterrupt:", "    print('\\n  Stopped.')"];
+var START_PY = START_PY_LINES.join('\n');
+
+function downloadStartPy() {
+  var blob = new Blob([START_PY], { type: 'text/plain' });
+  var u = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = u; a.download = 'start.py'; a.click();
+  URL.revokeObjectURL(u);
+}
+
+function doSyncHostRole() {
+  S.syncRole = 'host'; render();
+  setTimeout(drawSyncQR, 100);
+}
+
+function drawSyncQR() {
+  var wrap = document.getElementById('qr-wrap');
+  var urlEl = document.getElementById('host-url');
+  if (!wrap) return;
+  var base = window.location.origin;
+  if (!base || base === 'null' || base.startsWith('file:')) {
+    wrap.innerHTML = '<p style="font-size:.82rem;color:#6b7280;padding:.75rem;text-align:center;">Run start.py on your PC first,<br>then reopen from the address it shows.</p>';
+    return;
+  }
+  var syncUrl = base;
+  if (urlEl) urlEl.textContent = syncUrl;
+  S.syncHost = syncUrl;
+  saveSetting('syncHost', syncUrl);
+  wrap.innerHTML = '<div style="padding:1rem;text-align:center;"><div style="font-family:monospace;font-size:1rem;font-weight:700;color:#7c3aed;word-break:break-all;padding:.75rem;background:#f5f3ff;border-radius:.5rem;border:2px dashed #7c3aed;">' + syncUrl + '</div><p style="font-size:.78rem;color:#6b7280;margin-top:.6rem;">Type this address on your phone</p></div>';
+  S.syncStatus = 'Type this address in your phone browser to connect.';
+  render();
+}
+
+async function doSyncTest() {
+  var url = (S.syncHost || '').trim().replace(/\/$/, '');
+  if (!url) { S.syncStatus = 'Error: enter the address shown by start.py.'; render(); return; }
+  S.syncBusy = true; S.syncStatus = 'Connecting...'; render();
+  try {
+    var r = await fetch(url + '/ping', { signal: AbortSignal.timeout(6000) });
+    var d = await r.json();
+    S.syncHost = url;
+    await saveSetting('syncHost', url);
+    S.syncStatus = 'Connected! PC has ' + d.files + ' file(s). Now pull or push.';
+  } catch(e) {
+    S.syncStatus = 'Error: cannot reach PC. Is start.py running? Are both on the same WiFi?';
+  }
+  S.syncBusy = false; render();
+}
+
+async function doSyncPull() {
+  var url = (S.syncHost || '').trim().replace(/\/$/, '');
+  if (!url) { S.syncStatus = 'Error: enter the address first.'; render(); return; }
+  S.syncBusy = true; S.syncStatus = 'Getting files from PC...'; render();
+  try {
+    var r = await fetch(url + '/pull', { signal: AbortSignal.timeout(60000) });
+    if (!r.ok) throw new Error('Server error ' + r.status);
+    var d = await r.json();
+    var lf = new Set(S.files.map(function(f) { return String(f.id); }));
+    var ld = new Set(S.folders.map(function(f) { return String(f.id); }));
+    var af = 0, ad = 0;
+    (d.files || []).forEach(function(f) { if (!lf.has(String(f.id))) { S.files.push(f); af++; } });
+    (d.folders || []).forEach(function(f) { if (!ld.has(String(f.id))) { S.folders.push(f); ad++; } });
+    await saveFiles(); await saveFolders();
+    await saveSetting('syncHost', url);
+    S.syncStatus = 'Done! Got ' + af + ' new file(s), ' + ad + ' new folder(s).';
+  } catch(e) {
+    S.syncStatus = 'Error: ' + (e.message || 'pull failed. Is start.py running?');
+  }
+  S.syncBusy = false; render();
+}
+
+async function doSyncPush() {
+  var url = (S.syncHost || '').trim().replace(/\/$/, '');
+  if (!url) { S.syncStatus = 'Error: enter the address first.'; render(); return; }
+  S.syncBusy = true; S.syncStatus = 'Sending files to PC...'; render();
+  try {
+    var r = await fetch(url + '/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: S.files, folders: S.folders }),
+      signal: AbortSignal.timeout(120000)
+    });
+    if (!r.ok) throw new Error('Server error ' + r.status);
+    var d = await r.json();
+    await saveSetting('syncHost', url);
+    S.syncStatus = 'Done! PC now has ' + d.total + ' file(s). Added ' + d.added_files + ' new.';
+  } catch(e) {
+    S.syncStatus = 'Error: ' + (e.message || 'push failed. Is start.py running?');
+  }
+  S.syncBusy = false; render();
+}
+
+// Boot
+(async function() {
+  try { await initDB(); await loadFromDB(); } catch(e) { console.warn('IndexedDB unavailable:', e); }
+  await checkBio();
+  render();
+})();
+</script>
+</body>
+</html>
