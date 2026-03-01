@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#7c3aed">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,7 +13,7 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f3f4f6; overflow-x:hidden; }
     .container { max-width:1200px; margin:0 auto; padding:1rem; }
-    .btn { padding:.75rem 1.5rem; border:none; border-radius:.5rem; cursor:pointer; font-weight:600; transition:all .2s; font-size:1rem; display:inline-flex; align-items:center; gap:.5rem; justify-content:center; }
+    .btn { padding:.75rem 1.5rem; border:none; border-radius:.5rem; cursor:pointer; font-weight:600; transition:all .2s; font-size:1rem; display:inline-flex; align-items:center; gap:.5rem; justify-content:center; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
     .btn:disabled { opacity:.5; cursor:not-allowed; }
     .btn-primary { background:#7c3aed; color:white; }
     .btn-primary:hover:not(:disabled) { background:#6d28d9; }
@@ -21,8 +21,8 @@
     .btn-secondary:hover:not(:disabled) { background:#2563eb; }
     .btn-pink { background:#db2777; color:white; }
     .btn-pink:hover:not(:disabled) { background:#be185d; }
-    .input { width:100%; padding:.75rem 1rem; border:1px solid #d1d5db; border-radius:.5rem; font-size:1rem; background:white; }
-    .input:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+    .input { width:100%; padding:.75rem 1rem; border:1px solid #d1d5db; border-radius:.5rem; font-size:1rem; background:white; -webkit-appearance:none; appearance:none; touch-action:manipulation; }
+    .input:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1); font-size:16px; }
     .card { background:white; border-radius:1rem; box-shadow:0 4px 6px rgba(0,0,0,.07); padding:1.5rem; margin-bottom:1rem; }
     .header { background:linear-gradient(135deg,#7c3aed 0%,#3b82f6 100%); color:white; padding:1rem; box-shadow:0 2px 10px rgba(0,0,0,.1); }
     .file-item, .folder-item { display:flex; align-items:center; gap:1rem; padding:.75rem; border-radius:.5rem; transition:all .2s; cursor:pointer; border:1px solid #e5e7eb; margin-bottom:.5rem; }
@@ -123,10 +123,8 @@ var S = {
   showHidden: false,
   secretPassword: '',
   secretError: '',
-  syncHost: '',
-  syncRole: '',
-  syncStatus: '',
-  syncBusy: false
+  tgStatus: '',
+  tgBusy: false
 };
 
 // IndexedDB
@@ -175,7 +173,6 @@ async function loadFromDB() {
   if (pw)  S.storedPassword  = pw.value;
   if (bio) S.biometricEnabled = bio.value === 'true';
   if (spw) S.secretPassword  = spw.value;
-  var sh = await dbGet(ss, 'syncHost'); if (sh) S.syncHost = sh.value;
   S.files   = await dbAll(db.transaction(['files'],   'readonly').objectStore('files'));
   S.folders = await dbAll(db.transaction(['folders'], 'readonly').objectStore('folders'));
 }
@@ -373,7 +370,7 @@ function renderLock() {
     + '<p class="text-center text-gray mb-2">' + (S.storedPassword ? 'Enter your password to unlock' : 'Create a password to get started') + '</p>'
     + (S.error ? '<div class="alert alert-error">' + esc(S.error) + '</div>' : '')
     + '<div style="position:relative;margin-bottom:1rem;">'
-    + '<input type="' + (S.showPassword ? 'text' : 'password') + '" class="input" placeholder="Password" id="pwInput" value="' + esc(S.password) + '" autocomplete="current-password">'
+    + '<input type="' + (S.showPassword ? 'text' : 'password') + '" class="input" placeholder="Password" id="pwInput" value="' + esc(S.password) + '" autocomplete="current-password" style="font-size:16px;" oninput="S.password=this.value">'
     + '<button class="icon-btn" id="togglePw" style="position:absolute;right:8px;top:8px;">'
     + (S.showPassword
         ? '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" stroke-width="2"/></svg>'
@@ -390,9 +387,9 @@ function renderSecretModal() {
     return '<div class="modal"><div class="modal-box-dark">'
       + '<h2 style="font-size:1.2rem;font-weight:bold;margin-bottom:1.25rem;text-align:center;">Change Secret Password</h2>'
       + (S.secretError ? '<div class="secret-err">' + esc(S.secretError) + '</div>' : '')
-      + '<input type="password" class="input mb-1" placeholder="Current secret password" id="oldSecretInput">'
-      + '<input type="password" class="input mb-1" placeholder="New secret password" id="newSecretInput">'
-      + '<input type="password" class="input mb-2" placeholder="Confirm new password" id="confirmSecretInput">'
+      + '<input type="password" class="input mb-1" placeholder="Current secret password" style="font-size:16px;" id="oldSecretInput">'
+      + '<input type="password" class="input mb-1" placeholder="New secret password" style="font-size:16px;" id="newSecretInput">'
+      + '<input type="password" class="input mb-2" placeholder="Confirm new password" style="font-size:16px;" id="confirmSecretInput">'
       + '<div class="flex gap-1">'
       + '<button class="btn btn-pink" style="flex:1;" id="confirmChangeBtn">Update Password</button>'
       + '<button class="btn" style="flex:1;background:rgba(255,255,255,.15);color:white;" id="cancelSecretBtn">Cancel</button>'
@@ -407,7 +404,7 @@ function renderSecretModal() {
       + '<p style="color:rgba(255,255,255,.65);font-size:.9rem;">Set a password to protect your hidden files.<br>Keep it different from your main password.</p>'
       + '</div>'
       + (S.secretError ? '<div class="secret-err">' + esc(S.secretError) + '</div>' : '')
-      + '<input type="password" class="input mb-1" placeholder="New secret password" id="secretPwA" autocomplete="new-password">'
+      + '<input type="password" class="input mb-1" placeholder="New secret password" style="font-size:16px;" id="secretPwA" autocomplete="new-password">'
       + '<input type="password" class="input mb-2" placeholder="Confirm secret password" id="secretPwB" autocomplete="new-password">'
       + '<div class="flex gap-1">'
       + '<button class="btn btn-pink" style="flex:1;" id="setSecretBtn">Create Vault</button>'
@@ -422,7 +419,7 @@ function renderSecretModal() {
     + '<p style="color:rgba(255,255,255,.65);font-size:.9rem;">Enter your secret password to reveal hidden files.</p>'
     + '</div>'
     + (S.secretError ? '<div class="secret-err">' + esc(S.secretError) + '</div>' : '')
-    + '<input type="password" class="input mb-2" placeholder="Secret password" id="secretPwA" autocomplete="current-password">'
+    + '<input type="password" class="input mb-2" placeholder="Secret password" style="font-size:16px;" id="secretPwA" autocomplete="current-password">'
     + '<div class="flex gap-1">'
     + '<button class="btn btn-pink" style="flex:1;" id="unlockSecretBtn">Reveal Files</button>'
     + '<button class="btn" style="flex:1;background:rgba(255,255,255,.15);color:white;" id="cancelSecretBtn">Cancel</button>'
@@ -432,67 +429,25 @@ function renderSecretModal() {
 }
 
 function renderSyncModal() {
-  var st   = S.syncStatus;
-  var busy = S.syncBusy;
+  var st   = S.tgStatus;
+  var busy = S.tgBusy;
   var stHtml = st ? '<div style="margin:.5rem 0;padding:.6rem .75rem;border-radius:.5rem;font-size:.85rem;font-weight:500;background:'
     + (st.startsWith('Error') ? '#fee2e2;color:#991b1b' : (busy ? '#eff6ff;color:#1d4ed8' : '#d1fae5;color:#065f46'))
     + ';">' + esc(st) + '</div>' : '';
 
-  var hasHost = !!S.syncHost;
-
-  // PC host view - show QR + IP
-  if (S.syncRole === 'host') {
-    return '<div class="modal"><div class="modal-box" style="max-width:420px;text-align:center;">'
-      + '<h2 style="font-size:1.1rem;font-weight:bold;margin-bottom:.25rem;">Sync - PC</h2>'
-      + '<p style="color:#6b7280;font-size:.82rem;margin-bottom:.75rem;">Scan this QR code with your phone, or type the address.</p>'
-      + '<div id="qr-wrap" style="display:inline-block;padding:10px;background:white;border:2px solid #e5e7eb;border-radius:.5rem;margin-bottom:.5rem;"></div>'
-      + '<div style="font-family:monospace;font-size:.9rem;color:#374151;font-weight:600;margin-bottom:.75rem;" id="host-url"></div>'
-      + stHtml
-      + '<button id="closeSyncBtn" style="margin-top:.5rem;width:100%;padding:.6rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Close</button>'
-      + '</div></div>';
-  }
-
-  // Phone view - enter address or scan done
-  if (S.syncRole === 'phone') {
-    return '<div class="modal"><div class="modal-box" style="max-width:420px;">'
-      + '<h2 style="font-size:1.1rem;font-weight:bold;margin-bottom:.25rem;">Sync - Phone</h2>'
-      + '<p style="color:#6b7280;font-size:.82rem;margin-bottom:.75rem;">Enter the address shown on your PC, then choose what to sync.</p>'
-      + '<div style="display:flex;gap:.5rem;margin-bottom:.5rem;">'
-      + '<input class="input" id="syncHostInput" placeholder="http://192.168.x.x:8080" value="' + esc(S.syncHost) + '" style="flex:1;font-size:.875rem;">'
-      + '<button class="sync-btn sync-btn-test" id="syncTestBtn" ' + (busy ? 'disabled' : '') + '>Test</button>'
-      + '</div>'
-      + stHtml
-      + '<div style="display:flex;gap:.5rem;margin:.5rem 0;">'
-      + '<button class="sync-btn sync-btn-pull" id="syncPullBtn" style="flex:1;" ' + (!S.syncHost || busy ? 'disabled' : '') + '>Get from PC</button>'
-      + '<button class="sync-btn sync-btn-push" id="syncPushBtn" style="flex:1;" ' + (!S.syncHost || busy ? 'disabled' : '') + '>Send to PC</button>'
-      + '</div>'
-      + '<p style="font-size:.75rem;color:#6b7280;margin-bottom:.75rem;"><strong>Get</strong> = download PC files to phone &nbsp;|&nbsp; <strong>Send</strong> = upload phone files to PC</p>'
-      + '<button id="closeSyncBtn" style="width:100%;padding:.6rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Close</button>'
-      + '</div></div>';
-  }
-
-  // Default - choose role
   return '<div class="modal"><div class="modal-box" style="max-width:420px;">'
-    + '<h2 style="font-size:1.2rem;font-weight:bold;margin-bottom:.25rem;">WiFi Sync</h2>'
-    + '<p style="color:#6b7280;font-size:.85rem;margin-bottom:1rem;">Both devices must be on the same WiFi. Which device is this?</p>'
-    + '<div style="display:flex;gap:.75rem;flex-direction:column;margin-bottom:.75rem;">'
-
-    + '<button id="roleHostBtn" style="padding:1rem;border:2px solid #7c3aed;border-radius:.75rem;background:#faf5ff;cursor:pointer;text-align:left;width:100%;">'
-    + '<div style="font-weight:700;color:#6d28d9;">This is my PC</div>'
-    + '<div style="font-size:.8rem;color:#7c3aed;margin-top:.2rem;">Shows a QR code and address. Run start.py first, then click this.</div>'
-    + '</button>'
-
-    + '<button id="rolePhoneBtn" style="padding:1rem;border:2px solid #3b82f6;border-radius:.75rem;background:#eff6ff;cursor:pointer;text-align:left;width:100%;">'
-    + '<div style="font-weight:700;color:#1d4ed8;">This is my Phone</div>'
-    + '<div style="font-size:.8rem;color:#3b82f6;margin-top:.2rem;">Enter the address shown on your PC to connect.</div>'
-    + '</button>'
+    + '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">'
+    + '<div style="width:44px;height:44px;background:#29b6f6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">&#9992;</div>'
+    + '<div><h2 style="font-size:1.1rem;font-weight:700;">Telegram Sync</h2>'
+    + '<p style="font-size:.8rem;color:#6b7280;">Sync files through your Telegram account</p></div>'
     + '</div>'
-
-    + '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:.5rem;padding:.6rem .75rem;font-size:.78rem;color:#92400e;margin-bottom:.75rem;">'
-    + '<strong>First time on PC?</strong> Click below to download start.py, then double-click it.'
+    + stHtml
+    + '<div style="display:flex;gap:.5rem;margin-bottom:.75rem;">'
+    + '<button id="tgPushBtn" style="flex:1;padding:.75rem;background:#29b6f6;color:#fff;border:none;border-radius:.6rem;cursor:pointer;font-weight:700;font-size:.9rem;" ' + (busy ? 'disabled' : '') + '>Send to Telegram</button>'
+    + '<button id="tgPullBtn" style="flex:1;padding:.75rem;background:#f3f4f6;color:#374151;border:none;border-radius:.6rem;cursor:pointer;font-weight:700;font-size:.9rem;" ' + (busy ? 'disabled' : '') + '>Get from Telegram</button>'
     + '</div>'
-    + '<button id="dlStartBtn" style="width:100%;padding:.6rem;border:1px solid #7c3aed;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#7c3aed;margin-bottom:.5rem;">Download start.py for PC</button>'
-    + '<button id="closeSyncBtn" style="width:100%;padding:.6rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Cancel</button>'
+    + '<p style="font-size:.75rem;color:#9ca3af;margin-bottom:.75rem;line-height:1.5;">Your files are saved as a private message in your Telegram bot. Send from one device and Get on the other to sync.</p>'
+    + '<button id="closeSyncBtn" style="width:100%;padding:.65rem;border:1px solid #e5e7eb;border-radius:.5rem;background:white;cursor:pointer;font-weight:600;color:#374151;">Close</button>'
     + '</div></div>';
 }
 
@@ -606,7 +561,7 @@ function renderMain() {
     + vaultLabel + '</button>'
     + '<button class="btn" id="syncModalBtn" style="background:#f0fdf4;color:#0f766e;border:1px solid #a7f3d0;">'
     + '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6" stroke-width="2"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke-width="2"/></svg>'
-    + (S.syncHost ? 'Sync (On)' : 'Sync') + '</button>'
+    + 'Sync' + '</button>'
     + '</div>'
     + '<div>' + empty + folderRows + fileRows + '</div>'
     + '</div></div>' + modal;
@@ -638,7 +593,6 @@ function attachListeners() {
   if (pwInput) {
     pwInput.addEventListener('input', function(e) { S.password = e.target.value; });
     pwInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
-    setTimeout(function() { pwInput.focus(); }, 80);
   }
   if (togglePw) togglePw.addEventListener('click', function() {
     S.showPassword = !S.showPassword; render();
@@ -664,26 +618,14 @@ function attachListeners() {
   if (cancelModalBtn)  cancelModalBtn.addEventListener('click', function() { S.showModal = null; render(); });
 
   if (syncModalBtn) syncModalBtn.addEventListener('click', function() {
-    S.showModal = 'sync'; S.syncRole = ''; S.syncStatus = ''; render();
+    S.showModal = 'sync'; S.tgStatus = ''; render();
   });
-  var roleHostBtn   = Q('roleHostBtn');
-  var rolePhoneBtn  = Q('rolePhoneBtn');
-  var dlStartBtn    = Q('dlStartBtn');
-  var syncHostInput = Q('syncHostInput');
-  var syncTestBtn   = Q('syncTestBtn');
-  var syncPullBtn   = Q('syncPullBtn');
-  var syncPushBtn   = Q('syncPushBtn');
-  var closeSyncBtn  = Q('closeSyncBtn');
-  if (roleHostBtn)   roleHostBtn.addEventListener('click',  doSyncHostRole);
-  if (rolePhoneBtn)  rolePhoneBtn.addEventListener('click', function() { S.syncRole='phone'; render(); setTimeout(function(){var el=Q('syncHostInput');if(el)el.focus();},80); });
-  if (dlStartBtn)    dlStartBtn.addEventListener('click',   downloadStartPy);
-  if (syncHostInput) syncHostInput.addEventListener('input', function(e) { S.syncHost = e.target.value.trim(); });
-  if (syncTestBtn)   syncTestBtn.addEventListener('click',  doSyncTest);
-  if (syncPullBtn)   syncPullBtn.addEventListener('click',  doSyncPull);
-  if (syncPushBtn)   syncPushBtn.addEventListener('click',  doSyncPush);
-  if (closeSyncBtn)  closeSyncBtn.addEventListener('click', function() { S.showModal=null; S.syncStatus=''; render(); });
-  // draw QR after host modal renders
-  if (S.syncRole==='host') drawSyncQR();
+  var tgPushBtn  = Q('tgPushBtn');
+  var tgPullBtn  = Q('tgPullBtn');
+  var closeSyncBtn = Q('closeSyncBtn');
+  if (tgPushBtn)   tgPushBtn.addEventListener('click',  doTgPush);
+  if (tgPullBtn)   tgPullBtn.addEventListener('click',  doTgPull);
+  if (closeSyncBtn) closeSyncBtn.addEventListener('click', function() { S.showModal=null; S.tgStatus=''; render(); });
 
   if (vaultBtn) vaultBtn.addEventListener('click', function() {
     if (S.showHidden) {
@@ -951,98 +893,77 @@ async function checkBio() {
   } catch(e) { S.biometricAvailable = false; }
 }
 
-// WiFi Sync
-var START_PY_LINES = ["#!/usr/bin/env python3", "# My File Link - WiFi Sync Server", "# Put this file in the SAME FOLDER as index.html", "# Double-click it to start, or run: python start.py", "import http.server, json, socket, os, threading, urllib.parse, webbrowser", "from datetime import datetime", "PORT = 8080", "DIR = os.path.dirname(os.path.abspath(__file__))", "HTML = os.path.join(DIR, 'index.html')", "DATA = os.path.join(DIR, 'myfilelink_data.json')", "store = {'files': [], 'folders': []}", "lock = threading.Lock()", "def load():", "    global store", "    if os.path.exists(DATA):", "        try:", "            with open(DATA, 'r', encoding='utf-8') as f:", "                store = json.load(f)", "            print('  Loaded ' + str(len(store.get('files', []))) + ' files.')", "        except Exception as e:", "            print('  Warning: ' + str(e))", "            store = {'files': [], 'folders': []}", "def save():", "    with open(DATA, 'w', encoding='utf-8') as f:", "        json.dump(store, f)", "def get_ip():", "    try:", "        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)", "        s.connect(('8.8.8.8', 80))", "        ip = s.getsockname()[0]", "        s.close()", "        return ip", "    except:", "        return '127.0.0.1'", "class H(http.server.BaseHTTPRequestHandler):", "    def log_message(self, f, *a):", "        print('  [' + datetime.now().strftime('%H:%M:%S') + '] ' + f % a)", "    def cors(self):", "        self.send_header('Access-Control-Allow-Origin', '*')", "        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')", "        self.send_header('Access-Control-Allow-Headers', 'Content-Type')", "    def send_json(self, code, data):", "        b = json.dumps(data).encode()", "        self.send_response(code)", "        self.send_header('Content-Type', 'application/json')", "        self.send_header('Content-Length', len(b))", "        self.cors()", "        self.end_headers()", "        self.wfile.write(b)", "    def read_body(self):", "        n = int(self.headers.get('Content-Length', 0))", "        return json.loads(self.rfile.read(n)) if n else {}", "    def do_OPTIONS(self):", "        self.send_response(200)", "        self.cors()", "        self.end_headers()", "    def do_GET(self):", "        p = urllib.parse.urlparse(self.path).path", "        if p in ('/', '/index.html'):", "            if not os.path.exists(HTML):", "                self.send_response(404)", "                self.end_headers()", "                self.wfile.write(b'Put index.html in the same folder as start.py')", "                return", "            with open(HTML, 'rb') as f:", "                c = f.read()", "            self.send_response(200)", "            self.send_header('Content-Type', 'text/html; charset=utf-8')", "            self.send_header('Content-Length', len(c))", "            self.cors()", "            self.end_headers()", "            self.wfile.write(c)", "        elif p == '/ping':", "            with lock:", "                self.send_json(200, {'ok': True, 'files': len(store.get('files', [])), 'folders': len(store.get('folders', []))})", "        elif p == '/pull':", "            with lock:", "                self.send_json(200, {'files': store.get('files', []), 'folders': store.get('folders', [])})", "        else:", "            self.send_json(404, {'error': 'not found'})", "    def do_POST(self):", "        p = urllib.parse.urlparse(self.path).path", "        if p == '/push':", "            body = self.read_body()", "            with lock:", "                ef = {str(f['id']) for f in store.get('files', [])}", "                ed = {str(f['id']) for f in store.get('folders', [])}", "                af = ad = 0", "                for f in body.get('files', []):", "                    if str(f.get('id', '')) not in ef:", "                        store.setdefault('files', []).append(f)", "                        af += 1", "                for f in body.get('folders', []):", "                    if str(f.get('id', '')) not in ed:", "                        store.setdefault('folders', []).append(f)", "                        ad += 1", "                save()", "            self.send_json(200, {'ok': True, 'added_files': af, 'added_folders': ad, 'total': len(store.get('files', []))})", "        else:", "            self.send_json(404, {'error': 'not found'})", "load()", "ip = get_ip()", "srv = http.server.HTTPServer(('0.0.0.0', PORT), H)", "print()", "print('=' * 52)", "print('  My File Link - Sync Server running!')", "print('=' * 52)", "print()", "print('  On your PHONE, open the app, tap Sync,')", "print('  choose This is my Phone, and enter:')", "print()", "print('    http://' + ip + ':' + str(PORT))", "print()", "print('  On your PC browser, the app is at:')", "print('    http://' + ip + ':' + str(PORT))", "print()", "print('  Press Ctrl+C to stop.')", "print('=' * 52)", "threading.Timer(1.0, lambda: webbrowser.open('http://' + ip + ':' + str(PORT))).start()", "try:", "    srv.serve_forever()", "except KeyboardInterrupt:", "    print('\\n  Stopped.')"];
-var START_PY = START_PY_LINES.join('\n');
+// Telegram Sync
+var TG_TOKEN = "8622437443:AAHkflqZp0kULWYn0AWM-10InFFCRzjl-i4";
+var TG_CHAT  = "454148006";
+var TG_API   = 'https://api.telegram.org/bot' + TG_TOKEN;
 
-function downloadStartPy() {
-  var blob = new Blob([START_PY], { type: 'text/plain' });
-  var u = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = u; a.download = 'start.py'; a.click();
-  URL.revokeObjectURL(u);
-}
-
-function doSyncHostRole() {
-  S.syncRole = 'host'; render();
-  setTimeout(drawSyncQR, 100);
-}
-
-function drawSyncQR() {
-  var wrap = document.getElementById('qr-wrap');
-  var urlEl = document.getElementById('host-url');
-  if (!wrap) return;
-  var base = window.location.origin;
-  if (!base || base === 'null' || base.startsWith('file:')) {
-    wrap.innerHTML = '<p style="font-size:.82rem;color:#6b7280;padding:.75rem;text-align:center;">Run start.py on your PC first,<br>then reopen from the address it shows.</p>';
-    return;
-  }
-  var syncUrl = base;
-  if (urlEl) urlEl.textContent = syncUrl;
-  S.syncHost = syncUrl;
-  saveSetting('syncHost', syncUrl);
-  wrap.innerHTML = '<div style="padding:1rem;text-align:center;"><div style="font-family:monospace;font-size:1rem;font-weight:700;color:#7c3aed;word-break:break-all;padding:.75rem;background:#f5f3ff;border-radius:.5rem;border:2px dashed #7c3aed;">' + syncUrl + '</div><p style="font-size:.78rem;color:#6b7280;margin-top:.6rem;">Type this address on your phone</p></div>';
-  S.syncStatus = 'Type this address in your phone browser to connect.';
-  render();
-}
-
-async function doSyncTest() {
-  var url = (S.syncHost || '').trim().replace(/\/$/, '');
-  if (!url) { S.syncStatus = 'Error: enter the address shown by start.py.'; render(); return; }
-  S.syncBusy = true; S.syncStatus = 'Connecting...'; render();
+async function doTgPush() {
+  S.tgBusy = true; S.tgStatus = 'Sending to Telegram...'; render();
   try {
-    var r = await fetch(url + '/ping', { signal: AbortSignal.timeout(6000) });
+    var data = JSON.stringify({ files: S.files, folders: S.folders });
+    var blob = new Blob([data], { type: 'application/json' });
+    var form = new FormData();
+    form.append('chat_id', TG_CHAT);
+    form.append('caption', 'MYFILELINK_SYNC_' + Date.now());
+    form.append('document', blob, 'myfilelink_sync.json');
+    var r = await fetch(TG_API + '/sendDocument', { method: 'POST', body: form });
     var d = await r.json();
-    S.syncHost = url;
-    await saveSetting('syncHost', url);
-    S.syncStatus = 'Connected! PC has ' + d.files + ' file(s). Now pull or push.';
+    if (!d.ok) throw new Error(d.description || 'Telegram error');
+    S.tgStatus = 'Sent! ' + S.files.length + ' file(s) saved to Telegram.';
   } catch(e) {
-    S.syncStatus = 'Error: cannot reach PC. Is start.py running? Are both on the same WiFi?';
+    S.tgStatus = 'Error: ' + (e.message || 'push failed');
   }
-  S.syncBusy = false; render();
+  S.tgBusy = false; render();
 }
 
-async function doSyncPull() {
-  var url = (S.syncHost || '').trim().replace(/\/$/, '');
-  if (!url) { S.syncStatus = 'Error: enter the address first.'; render(); return; }
-  S.syncBusy = true; S.syncStatus = 'Getting files from PC...'; render();
+async function doTgPull() {
+  S.tgBusy = true; S.tgStatus = 'Getting from Telegram...'; render();
   try {
-    var r = await fetch(url + '/pull', { signal: AbortSignal.timeout(60000) });
-    if (!r.ok) throw new Error('Server error ' + r.status);
+    // Get latest messages to find the sync file
+    var r = await fetch(TG_API + '/getUpdates?limit=50&offset=-50');
     var d = await r.json();
+    if (!d.ok) throw new Error(d.description || 'Telegram error');
+
+    // Find latest MYFILELINK_SYNC message
+    var msgs = (d.result || []).reverse();
+    var fileId = null;
+    for (var i = 0; i < msgs.length; i++) {
+      var msg = msgs[i].message || msgs[i].channel_post || {};
+      if (msg.document && msg.caption && msg.caption.startsWith('MYFILELINK_SYNC_')) {
+        fileId = msg.document.file_id;
+        break;
+      }
+    }
+
+    if (!fileId) {
+      // Try getFile approach via channel history
+      S.tgStatus = 'No sync data found. Push from your other device first.';
+      S.tgBusy = false; render(); return;
+    }
+
+    // Get file path
+    var r2 = await fetch(TG_API + '/getFile?file_id=' + fileId);
+    var d2 = await r2.json();
+    if (!d2.ok) throw new Error('Cannot get file');
+
+    // Download file
+    var fileUrl = 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + d2.result.file_path;
+    var r3 = await fetch(fileUrl);
+    var syncData = await r3.json();
+
+    // Merge
     var lf = new Set(S.files.map(function(f) { return String(f.id); }));
     var ld = new Set(S.folders.map(function(f) { return String(f.id); }));
     var af = 0, ad = 0;
-    (d.files || []).forEach(function(f) { if (!lf.has(String(f.id))) { S.files.push(f); af++; } });
-    (d.folders || []).forEach(function(f) { if (!ld.has(String(f.id))) { S.folders.push(f); ad++; } });
+    (syncData.files || []).forEach(function(f) { if (!lf.has(String(f.id))) { S.files.push(f); af++; } });
+    (syncData.folders || []).forEach(function(f) { if (!ld.has(String(f.id))) { S.folders.push(f); ad++; } });
     await saveFiles(); await saveFolders();
-    await saveSetting('syncHost', url);
-    S.syncStatus = 'Done! Got ' + af + ' new file(s), ' + ad + ' new folder(s).';
+    S.tgStatus = 'Done! Got ' + af + ' new file(s), ' + ad + ' new folder(s).';
   } catch(e) {
-    S.syncStatus = 'Error: ' + (e.message || 'pull failed. Is start.py running?');
+    S.tgStatus = 'Error: ' + (e.message || 'pull failed');
   }
-  S.syncBusy = false; render();
-}
-
-async function doSyncPush() {
-  var url = (S.syncHost || '').trim().replace(/\/$/, '');
-  if (!url) { S.syncStatus = 'Error: enter the address first.'; render(); return; }
-  S.syncBusy = true; S.syncStatus = 'Sending files to PC...'; render();
-  try {
-    var r = await fetch(url + '/push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: S.files, folders: S.folders }),
-      signal: AbortSignal.timeout(120000)
-    });
-    if (!r.ok) throw new Error('Server error ' + r.status);
-    var d = await r.json();
-    await saveSetting('syncHost', url);
-    S.syncStatus = 'Done! PC now has ' + d.total + ' file(s). Added ' + d.added_files + ' new.';
-  } catch(e) {
-    S.syncStatus = 'Error: ' + (e.message || 'push failed. Is start.py running?');
-  }
-  S.syncBusy = false; render();
+  S.tgBusy = false; render();
 }
 
 // Boot
