@@ -897,23 +897,27 @@ async function checkBio() {
 }
 
 // Telegram Sync
-var TG_TOKEN = "8681672521:AAGMK_hd0MFocefH8H4AW5ZMJiW_Ej8lLmM";
-var TG_CHAT  = "454148006";
+var TG_TOKEN = '8681672521:AAGMK_hd0MFocefH8H4AW5ZMJiW_Ej8lLmM';
+var TG_CHAT  = '454148006';
 var TG_API   = 'https://api.telegram.org/bot' + TG_TOKEN;
+var TG_FILE_API = 'https://api.telegram.org/file/bot' + TG_TOKEN;
 
 async function doTgPush() {
   S.tgBusy = true; S.tgStatus = 'Sending to Telegram...'; render();
   try {
-    var data = JSON.stringify({ files: S.files, folders: S.folders });
+    var data = JSON.stringify({ files: S.files, folders: S.folders, ts: Date.now() });
     var blob = new Blob([data], { type: 'application/json' });
     var form = new FormData();
     form.append('chat_id', TG_CHAT);
-    form.append('caption', 'MYFILELINK_SYNC_' + Date.now());
-    form.append('document', blob, 'myfilelink_sync.json');
+    form.append('caption', 'MYFILELINK_SYNC');
+    form.append('document', blob, 'sync.json');
     var r = await fetch(TG_API + '/sendDocument', { method: 'POST', body: form });
     var d = await r.json();
     if (!d.ok) throw new Error(d.description || 'Telegram error');
-    S.tgStatus = 'Sent! ' + S.files.length + ' file(s) saved to Telegram.';
+    // Store the message_id so pull can find it
+    var msgId = d.result.message_id;
+    await saveSetting('tgLastMsgId', String(msgId));
+    S.tgStatus = 'Sent! ' + S.files.length + ' file(s) saved. Message ID: ' + msgId;
   } catch(e) {
     S.tgStatus = 'Error: ' + (e.message || 'push failed');
   }
@@ -923,39 +927,43 @@ async function doTgPush() {
 async function doTgPull() {
   S.tgBusy = true; S.tgStatus = 'Getting from Telegram...'; render();
   try {
-    // Get latest messages to find the sync file
-    var r = await fetch(TG_API + '/getUpdates?limit=50&offset=-50');
-    var d = await r.json();
-    if (!d.ok) throw new Error(d.description || 'Telegram error');
-
-    // Find latest MYFILELINK_SYNC message
-    var msgs = (d.result || []).reverse();
+    // Search through recent messages for MYFILELINK_SYNC
+    var found = false;
     var fileId = null;
-    for (var i = 0; i < msgs.length; i++) {
-      var msg = msgs[i].message || msgs[i].channel_post || {};
-      if (msg.document && msg.caption && msg.caption.startsWith('MYFILELINK_SYNC_')) {
-        fileId = msg.document.file_id;
-        break;
+
+    // Try offset-based search through last 100 messages
+    for (var offset = -100; offset <= -1 && !found; offset += 50) {
+      var r = await fetch(TG_API + '/getUpdates?limit=50&offset=' + offset + '&allowed_updates=["message"]');
+      var d = await r.json();
+      if (!d.ok) throw new Error(d.description || 'Telegram error');
+      var msgs = (d.result || []).slice().reverse();
+      for (var i = 0; i < msgs.length; i++) {
+        var msg = msgs[i].message || {};
+        if (msg.document && msg.caption && msg.caption.indexOf('MYFILELINK_SYNC') !== -1) {
+          fileId = msg.document.file_id;
+          found = true;
+          break;
+        }
       }
     }
 
-    if (!fileId) {
-      // Try getFile approach via channel history
-      S.tgStatus = 'No sync data found. Push from your other device first.';
+    if (!found) {
+      // Try forwardMessages approach - get chat history via copyMessage
+      S.tgStatus = 'No sync data found. Make sure you pushed from your PC first, then try again.';
       S.tgBusy = false; render(); return;
     }
 
-    // Get file path
+    // Get file download path
     var r2 = await fetch(TG_API + '/getFile?file_id=' + fileId);
     var d2 = await r2.json();
-    if (!d2.ok) throw new Error('Cannot get file');
+    if (!d2.ok) throw new Error('Cannot get file: ' + d2.description);
 
-    // Download file
-    var fileUrl = 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + d2.result.file_path;
+    var fileUrl = TG_FILE_API + '/' + d2.result.file_path;
     var r3 = await fetch(fileUrl);
+    if (!r3.ok) throw new Error('Cannot download file');
     var syncData = await r3.json();
 
-    // Merge
+    // Merge files
     var lf = new Set(S.files.map(function(f) { return String(f.id); }));
     var ld = new Set(S.folders.map(function(f) { return String(f.id); }));
     var af = 0, ad = 0;
