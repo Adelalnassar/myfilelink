@@ -902,11 +902,19 @@ var TG_TOKEN = '8681672521:AAFUK7eJWFbu9J9QrUjDJHGFh_Dd8ewIASE';
 var TG_CHAT  = '454148006';
 var TG_API   = 'https://api.telegram.org/bot' + TG_TOKEN;
 var TG_FILE_API = 'https://api.telegram.org/file/bot' + TG_TOKEN;
+var SYNC_KEY = 'tgSyncFileId';
+
+// Clear any webhook that might be blocking getUpdates
+async function clearWebhook() {
+  try {
+    await fetch(TG_API + '/deleteWebhook?drop_pending_updates=false');
+  } catch(e) {}
+}
 
 async function doTgPush() {
   S.tgBusy = true; S.tgStatus = 'Sending to Telegram...'; render();
   try {
-    // Send as document file
+    await clearWebhook();
     var data = JSON.stringify({ files: S.files, folders: S.folders, ts: Date.now() });
     var blob = new Blob([data], { type: 'application/json' });
     var form = new FormData();
@@ -916,18 +924,23 @@ async function doTgPush() {
     var r = await fetch(TG_API + '/sendDocument', { method: 'POST', body: form });
     var d = await r.json();
     if (!d.ok) throw new Error(d.description || 'Telegram error');
-    var msgId = d.result.message_id;
     var fileId = d.result.document.file_id;
-    // Save file_id locally so other device can pull it
-    await saveSetting('tgFileId', fileId);
-    await saveSetting('tgMsgId', String(msgId));
-    // Also send the file_id as a plain text message so other device can find it
+    // Store file_id in a pinned message so any device can retrieve it
+    var msgId = d.result.message_id;
+    // Send file_id as plain text message for easy retrieval
     await fetch(TG_API + '/sendMessage', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TG_CHAT, text: 'MYFILELINK_FILEID:' + fileId })
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_id: TG_CHAT, text: 'MYFILELINK_ID:' + fileId })
     });
-    S.tgStatus = 'Sent successfully! Now tap Get on your other device.';
+    // Pin the message
+    await fetch(TG_API + '/pinChatMessage', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_id: TG_CHAT, message_id: msgId + 1, disable_notification: true })
+    });
+    await saveSetting(SYNC_KEY, fileId);
+    S.tgStatus = 'Sent! ' + S.files.length + ' file(s). Now tap Get on your phone.';
   } catch(e) {
     S.tgStatus = 'Error: ' + (e.message || 'push failed');
   }
@@ -937,57 +950,68 @@ async function doTgPush() {
 async function doTgPull() {
   S.tgBusy = true; S.tgStatus = 'Getting from Telegram...'; render();
   try {
-    // Get recent updates and find the file ID message
-    var r = await fetch(TG_API + '/getUpdates?limit=100&offset=-100');
-    var d = await r.json();
-    if (!d.ok) throw new Error(d.description || 'Telegram error: ' + JSON.stringify(d));
-
+    await clearWebhook();
     var fileId = null;
-    var msgs = (d.result || []).slice().reverse();
-    
-    // First look for MYFILELINK_FILEID text message
-    for (var i = 0; i < msgs.length; i++) {
-      var msg = msgs[i].message || {};
-      if (msg.text && msg.text.indexOf('MYFILELINK_FILEID:') === 0) {
-        fileId = msg.text.replace('MYFILELINK_FILEID:', '').trim();
-        break;
+
+    // Method 1: Check pinned message
+    var rPin = await fetch(TG_API + '/getChat?chat_id=' + TG_CHAT);
+    var dPin = await rPin.json();
+    if (dPin.ok && dPin.result.pinned_message) {
+      var pm = dPin.result.pinned_message;
+      if (pm.document && pm.caption && pm.caption.indexOf('MYFILELINK_SYNC') !== -1) {
+        fileId = pm.document.file_id;
       }
     }
-    
-    // Fallback: look for document with MYFILELINK_SYNC caption
+
+    // Method 2: getUpdates
     if (!fileId) {
-      for (var i = 0; i < msgs.length; i++) {
-        var msg = msgs[i].message || {};
-        if (msg.document && msg.caption && msg.caption.indexOf('MYFILELINK_SYNC') !== -1) {
-          fileId = msg.document.file_id;
-          break;
+      var r = await fetch(TG_API + '/getUpdates?limit=100&offset=-100&allowed_updates=%5B%22message%22%5D');
+      var d = await r.json();
+      if (d.ok) {
+        var msgs = (d.result || []).slice().reverse();
+        for (var i = 0; i < msgs.length; i++) {
+          var msg = msgs[i].message || {};
+          // Check text message with file ID
+          if (msg.text && msg.text.indexOf('MYFILELINK_ID:') === 0) {
+            fileId = msg.text.replace('MYFILELINK_ID:', '').trim();
+            break;
+          }
+          // Check document
+          if (msg.document && msg.caption && msg.caption.indexOf('MYFILELINK_SYNC') !== -1) {
+            fileId = msg.document.file_id;
+            break;
+          }
         }
       }
     }
 
+    // Method 3: Use locally stored file ID
     if (!fileId) {
-      S.tgStatus = 'No sync data found. Push from your PC first, then try again.';
+      var stored = await dbGet(db.transaction(['settings'],'readonly').objectStore('settings'), SYNC_KEY);
+      if (stored) fileId = stored.value;
+    }
+
+    if (!fileId) {
+      S.tgStatus = 'No sync data found. Push from your PC first, then try again here.';
       S.tgBusy = false; render(); return;
     }
 
     // Download the file
     var r2 = await fetch(TG_API + '/getFile?file_id=' + fileId);
     var d2 = await r2.json();
-    if (!d2.ok) throw new Error('Cannot get file: ' + d2.description);
+    if (!d2.ok) throw new Error('Cannot locate file: ' + d2.description);
 
-    var fileUrl = TG_FILE_API + '/' + d2.result.file_path;
-    var r3 = await fetch(fileUrl);
+    var r3 = await fetch(TG_FILE_API + '/' + d2.result.file_path);
     if (!r3.ok) throw new Error('Cannot download sync file');
     var syncData = await r3.json();
 
-    // Merge
     var lf = new Set(S.files.map(function(f) { return String(f.id); }));
     var ld = new Set(S.folders.map(function(f) { return String(f.id); }));
     var af = 0, ad = 0;
     (syncData.files || []).forEach(function(f) { if (!lf.has(String(f.id))) { S.files.push(f); af++; } });
     (syncData.folders || []).forEach(function(f) { if (!ld.has(String(f.id))) { S.folders.push(f); ad++; } });
     await saveFiles(); await saveFolders();
-    S.tgStatus = 'Done! Got ' + af + ' new file(s), ' + ad + ' new folder(s).';
+    S.tgStatus = 'Done! Got ' + af + ' new file(s), ' + ad + ' folder(s).';
   } catch(e) {
     S.tgStatus = 'Error: ' + (e.message || 'pull failed');
   }
