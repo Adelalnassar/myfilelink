@@ -380,6 +380,7 @@ function renderLock() {
         : '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>')
     + '</button></div>'
     + '<button class="btn btn-primary" style="width:100%;" id="loginBtn">' + (S.storedPassword ? 'Unlock' : 'Set Password &amp; Unlock') + '</button>'
+    + (S.storedPassword ? '<button id="resetPwBtn" style="margin-top:.5rem;width:100%;background:none;border:none;color:#9ca3af;font-size:.8rem;cursor:pointer;padding:.4rem;">Forgot password? Reset app</button>' : '')
     + (S.biometricAvailable && S.biometricEnabled && S.storedPassword ? '<button class="btn btn-secondary mt-1" style="width:100%;" id="bioBtn">Biometric Unlock</button>' : '')
     + '</div></div>';
 }
@@ -897,7 +898,7 @@ async function checkBio() {
 }
 
 // Telegram Sync
-var TG_TOKEN = '8681672521:AAGMK_hd0MFocefH8H4AW5ZMJiW_Ej8lLmM';
+var TG_TOKEN = '8681672521:AAFUK7eJWFbu9J9QrUjDJHGFh_Dd8ewIASE';
 var TG_CHAT  = '454148006';
 var TG_API   = 'https://api.telegram.org/bot' + TG_TOKEN;
 var TG_FILE_API = 'https://api.telegram.org/file/bot' + TG_TOKEN;
@@ -905,6 +906,7 @@ var TG_FILE_API = 'https://api.telegram.org/file/bot' + TG_TOKEN;
 async function doTgPush() {
   S.tgBusy = true; S.tgStatus = 'Sending to Telegram...'; render();
   try {
+    // Send as document file
     var data = JSON.stringify({ files: S.files, folders: S.folders, ts: Date.now() });
     var blob = new Blob([data], { type: 'application/json' });
     var form = new FormData();
@@ -914,10 +916,18 @@ async function doTgPush() {
     var r = await fetch(TG_API + '/sendDocument', { method: 'POST', body: form });
     var d = await r.json();
     if (!d.ok) throw new Error(d.description || 'Telegram error');
-    // Store the message_id so pull can find it
     var msgId = d.result.message_id;
-    await saveSetting('tgLastMsgId', String(msgId));
-    S.tgStatus = 'Sent! ' + S.files.length + ' file(s) saved. Message ID: ' + msgId;
+    var fileId = d.result.document.file_id;
+    // Save file_id locally so other device can pull it
+    await saveSetting('tgFileId', fileId);
+    await saveSetting('tgMsgId', String(msgId));
+    // Also send the file_id as a plain text message so other device can find it
+    await fetch(TG_API + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TG_CHAT, text: 'MYFILELINK_FILEID:' + fileId })
+    });
+    S.tgStatus = 'Sent successfully! Now tap Get on your other device.';
   } catch(e) {
     S.tgStatus = 'Error: ' + (e.message || 'push failed');
   }
@@ -927,43 +937,50 @@ async function doTgPush() {
 async function doTgPull() {
   S.tgBusy = true; S.tgStatus = 'Getting from Telegram...'; render();
   try {
-    // Search through recent messages for MYFILELINK_SYNC
-    var found = false;
-    var fileId = null;
+    // Get recent updates and find the file ID message
+    var r = await fetch(TG_API + '/getUpdates?limit=100&offset=-100');
+    var d = await r.json();
+    if (!d.ok) throw new Error(d.description || 'Telegram error: ' + JSON.stringify(d));
 
-    // Try offset-based search through last 100 messages
-    for (var offset = -100; offset <= -1 && !found; offset += 50) {
-      var r = await fetch(TG_API + '/getUpdates?limit=50&offset=' + offset + '&allowed_updates=["message"]');
-      var d = await r.json();
-      if (!d.ok) throw new Error(d.description || 'Telegram error');
-      var msgs = (d.result || []).slice().reverse();
+    var fileId = null;
+    var msgs = (d.result || []).slice().reverse();
+    
+    // First look for MYFILELINK_FILEID text message
+    for (var i = 0; i < msgs.length; i++) {
+      var msg = msgs[i].message || {};
+      if (msg.text && msg.text.indexOf('MYFILELINK_FILEID:') === 0) {
+        fileId = msg.text.replace('MYFILELINK_FILEID:', '').trim();
+        break;
+      }
+    }
+    
+    // Fallback: look for document with MYFILELINK_SYNC caption
+    if (!fileId) {
       for (var i = 0; i < msgs.length; i++) {
         var msg = msgs[i].message || {};
         if (msg.document && msg.caption && msg.caption.indexOf('MYFILELINK_SYNC') !== -1) {
           fileId = msg.document.file_id;
-          found = true;
           break;
         }
       }
     }
 
-    if (!found) {
-      // Try forwardMessages approach - get chat history via copyMessage
-      S.tgStatus = 'No sync data found. Make sure you pushed from your PC first, then try again.';
+    if (!fileId) {
+      S.tgStatus = 'No sync data found. Push from your PC first, then try again.';
       S.tgBusy = false; render(); return;
     }
 
-    // Get file download path
+    // Download the file
     var r2 = await fetch(TG_API + '/getFile?file_id=' + fileId);
     var d2 = await r2.json();
     if (!d2.ok) throw new Error('Cannot get file: ' + d2.description);
 
     var fileUrl = TG_FILE_API + '/' + d2.result.file_path;
     var r3 = await fetch(fileUrl);
-    if (!r3.ok) throw new Error('Cannot download file');
+    if (!r3.ok) throw new Error('Cannot download sync file');
     var syncData = await r3.json();
 
-    // Merge files
+    // Merge
     var lf = new Set(S.files.map(function(f) { return String(f.id); }));
     var ld = new Set(S.folders.map(function(f) { return String(f.id); }));
     var af = 0, ad = 0;
