@@ -12,6 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="My File Link">
   <title>My File Link</title>
 
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f3f4f6; overflow-x:hidden; }
@@ -455,6 +456,57 @@ function renderSyncModal() {
     + '</div></div>';
 }
 
+function renderChatModal() {
+  var msgs = S.chatMessages.map(function(m) {
+    var isMe = m.from === 'me';
+    var isFile = m.type === 'file';
+    var time = new Date(m.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    var bubble = isFile
+      ? '<div style="font-size:.82rem;font-weight:600;">&#128206; ' + esc(m.name) + ' (' + fmtSize(m.size) + ')</div>'
+        + '<button data-dlid="' + m.id + '" class="chat-dl-btn" style="margin-top:.3rem;font-size:.75rem;background:rgba(255,255,255,.3);border:none;border-radius:.3rem;padding:.2rem .5rem;cursor:pointer;color:inherit;">Download</button>'
+      : '<div>' + esc(m.text) + '</div>';
+    return '<div style="display:flex;justify-content:' + (isMe ? 'flex-end' : 'flex-start') + ';margin-bottom:.5rem;">'
+      + '<div style="max-width:75%;background:' + (isMe ? '#7c3aed' : '#f3f4f6') + ';color:' + (isMe ? '#fff' : '#1f2937') + ';padding:.6rem .85rem;border-radius:' + (isMe ? '1rem 1rem 0 1rem' : '1rem 1rem 1rem 0') + ';font-size:.875rem;">'
+      + bubble
+      + '<div style="font-size:.65rem;opacity:.6;margin-top:.2rem;text-align:right;">' + time + ' - expires in 5 min</div>'
+      + '</div></div>';
+  }).join('');
+
+  var connected = !!S.chatConn;
+  var myId = S.chatPeerId;
+
+  var connectSection = connected ? '' :
+    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.6rem;padding:.75rem;margin-bottom:.75rem;font-size:.82rem;">'
+    + '<div style="font-weight:700;color:#166534;margin-bottom:.4rem;">Your ID (share with other device):</div>'
+    + '<div style="font-family:monospace;font-size:1rem;font-weight:800;color:#7c3aed;letter-spacing:.1em;padding:.4rem;background:white;border-radius:.3rem;text-align:center;">' + (myId || 'Starting...') + '</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:.4rem;margin-bottom:.75rem;">'
+    + '<input class="input" id="chatConnInput" placeholder="Enter other device ID" value="' + esc(S.chatConnectId) + '" style="font-size:16px;flex:1;">'
+    + '<button id="chatConnectBtn" style="padding:.6rem 1rem;background:#7c3aed;color:white;border:none;border-radius:.5rem;cursor:pointer;font-weight:600;white-space:nowrap;">Connect</button>'
+    + '</div>';
+
+  var statusBar = connected
+    ? '<div style="background:#d1fae5;color:#065f46;padding:.4rem .75rem;border-radius:.4rem;font-size:.8rem;font-weight:600;margin-bottom:.5rem;">Connected! Messages auto-delete in 5 minutes.</div>'
+    : '<div style="background:#fef3c7;color:#92400e;padding:.4rem .75rem;border-radius:.4rem;font-size:.8rem;margin-bottom:.5rem;">Not connected. Share your ID with the other device.</div>';
+
+  return '<div class="modal"><div class="modal-box" style="max-width:480px;height:80vh;display:flex;flex-direction:column;padding:1rem;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">'
+    + '<h2 style="font-size:1.1rem;font-weight:700;">QuickChat</h2>'
+    + (connected ? '<button id="chatDisconnectBtn" style="font-size:.75rem;color:#ef4444;background:none;border:none;cursor:pointer;">Disconnect</button>' : '')
+    + '<button id="closeChatBtn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#9ca3af;line-height:1;">&times;</button>'
+    + '</div>'
+    + connectSection
+    + statusBar
+    + '<div id="chatMsgs" style="flex:1;overflow-y:auto;padding:.25rem 0;min-height:0;">' + (msgs || '<div style="text-align:center;color:#9ca3af;padding:2rem;font-size:.85rem;">No messages yet</div>') + '</div>'
+    + (connected ? '<div style="display:flex;gap:.4rem;margin-top:.5rem;padding-top:.5rem;border-top:1px solid #e5e7eb;">'
+      + '<input class="input" id="chatInput" placeholder="Type a message..." value="' + esc(S.chatInput) + '" style="font-size:16px;flex:1;">'
+      + '<label style="padding:.6rem .75rem;background:#f3f4f6;border-radius:.5rem;cursor:pointer;font-size:1.2rem;" title="Send file">&#128206;<input type="file" id="chatFileInput" style="display:none;"></label>'
+      + '<button id="chatSendBtn" style="padding:.6rem 1rem;background:#7c3aed;color:white;border:none;border-radius:.5rem;cursor:pointer;font-size:1.2rem;">&#10148;</button>'
+      + '</div>' : '')
+    + '</div></div>';
+}
+
+
 function renderMain() {
   var fid = S.currentPath.length ? S.currentPath[S.currentPath.length - 1].id : null;
   var allFolderFiles = S.files.filter(function(f) { return f.folderId === fid; });
@@ -532,6 +584,8 @@ function renderMain() {
     modal = renderSecretModal();
   } else if (S.showModal === 'sync') {
     modal = renderSyncModal();
+  } else if (S.showModal === 'chat') {
+    modal = renderChatModal();
   }
 
   var bioRow = S.biometricAvailable
@@ -554,6 +608,8 @@ function renderMain() {
     + '<div class="breadcrumb">' + crumb + '</div>'
     + '<div class="card">'
     + '<div class="flex gap-1 mb-2" style="flex-wrap:wrap;">'
+    + '<button class="btn" style="background:#0ea5e9;color:white;" id="chatBtn">'
+    + '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/></svg>QuickChat</button>'
     + '<button class="btn btn-primary" id="newFolderBtn">'
     + '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke-width="2"/><path d="M12 11v6M9 14h6" stroke-width="2"/></svg>New Folder</button>'
     + '<label class="btn btn-secondary" style="cursor:pointer;">'
@@ -630,6 +686,40 @@ function attachListeners() {
   if (tgPushBtn)   tgPushBtn.addEventListener('click',  doTgPush);
   if (tgPullBtn)   tgPullBtn.addEventListener('click',  doTgPull);
   if (closeSyncBtn) closeSyncBtn.addEventListener('click', function() { S.showModal=null; S.tgStatus=''; render(); });
+
+  // Chat listeners
+  var chatBtn          = Q('chatBtn');
+  var chatConnInput    = Q('chatConnInput');
+  var chatConnectBtn   = Q('chatConnectBtn');
+  var chatSendBtn      = Q('chatSendBtn');
+  var chatInput        = Q('chatInput');
+  var chatFileInput    = Q('chatFileInput');
+  var closeChatBtn     = Q('closeChatBtn');
+  var chatDisconnectBtn= Q('chatDisconnectBtn');
+  if (chatBtn) chatBtn.addEventListener('click', function() {
+    S.showModal = 'chat'; render();
+    initPeer();
+  });
+  if (chatConnInput) chatConnInput.addEventListener('input', function(e) { S.chatConnectId = e.target.value.trim(); });
+  if (chatConnectBtn) chatConnectBtn.addEventListener('click', doConnectPeer);
+  if (chatSendBtn) chatSendBtn.addEventListener('click', doSendMessage);
+  if (chatInput) {
+    chatInput.addEventListener('input', function(e) { S.chatInput = e.target.value; });
+    chatInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') doSendMessage(); });
+  }
+  if (chatFileInput) chatFileInput.addEventListener('change', doSendFile);
+  if (closeChatBtn) closeChatBtn.addEventListener('click', function() { S.showModal = null; render(); });
+  if (chatDisconnectBtn) chatDisconnectBtn.addEventListener('click', function() {
+    if (S.chatConn) { S.chatConn.close(); S.chatConn = null; }
+    S.chatMessages = []; render();
+  });
+  // Chat download buttons
+  document.querySelectorAll('.chat-dl-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { downloadChatFile(btn.dataset.dlid); });
+  });
+  // Scroll chat to bottom
+  var chatMsgs = Q('chatMsgs');
+  if (chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
 
   if (vaultBtn) vaultBtn.addEventListener('click', function() {
     if (S.showHidden) {
@@ -895,6 +985,103 @@ async function checkBio() {
     if (window.PublicKeyCredential)
       S.biometricAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
   } catch(e) { S.biometricAvailable = false; }
+}
+
+// Chat file store (temporary, in memory only)
+var chatFileStore = {};
+
+function downloadChatFile(id) {
+  var f = chatFileStore[id];
+  if (!f) return;
+  var a = document.createElement('a');
+  a.href = f.data; a.download = f.name; a.click();
+}
+
+function initPeer() {
+  if (S.chatPeer && !S.chatPeer.destroyed) return;
+  var peer = new Peer({ debug: 0 });
+  peer.on('open', function(id) {
+    S.chatPeerId = id;
+    render();
+    setTimeout(function() { var el = Q('chatMsgs'); if (el) el.scrollTop = el.scrollHeight; }, 50);
+  });
+  peer.on('connection', function(conn) {
+    setupConn(conn);
+  });
+  peer.on('error', function(e) {
+    S.chatPeerId = 'Error: ' + e.type;
+    render();
+  });
+  S.chatPeer = peer;
+}
+
+function setupConn(conn) {
+  S.chatConn = conn;
+  conn.on('open', function() {
+    render();
+  });
+  conn.on('data', function(data) {
+    var msg = JSON.parse(data);
+    if (msg.type === 'file') {
+      chatFileStore[msg.id] = { data: msg.data, name: msg.name };
+    }
+    msg.from = 'them';
+    S.chatMessages.push(msg);
+    // Auto-delete after 5 minutes
+    setTimeout(function() {
+      S.chatMessages = S.chatMessages.filter(function(m) { return m !== msg; });
+      if (msg.type === 'file') delete chatFileStore[msg.id];
+      if (S.showModal === 'chat') render();
+    }, 5 * 60 * 1000);
+    render();
+    setTimeout(function() { var el = Q('chatMsgs'); if (el) el.scrollTop = el.scrollHeight; }, 50);
+  });
+  conn.on('close', function() {
+    S.chatConn = null; render();
+  });
+}
+
+function doConnectPeer() {
+  var id = (S.chatConnectId || '').trim();
+  if (!id) return;
+  if (!S.chatPeer || S.chatPeer.destroyed) initPeer();
+  setTimeout(function() {
+    var conn = S.chatPeer.connect(id, { reliable: true });
+    setupConn(conn);
+  }, 500);
+}
+
+function doSendMessage() {
+  if (!S.chatConn || !S.chatInput.trim()) return;
+  var msg = { id: uid(), type: 'text', text: S.chatInput.trim(), from: 'me', ts: Date.now() };
+  S.chatConn.send(JSON.stringify(msg));
+  S.chatMessages.push(msg);
+  S.chatInput = '';
+  // Auto-delete after 5 minutes
+  setTimeout(function() {
+    S.chatMessages = S.chatMessages.filter(function(m) { return m !== msg; });
+    if (S.showModal === 'chat') render();
+  }, 5 * 60 * 1000);
+  render();
+  setTimeout(function() { var el = Q('chatMsgs'); if (el) el.scrollTop = el.scrollHeight; }, 50);
+}
+
+async function doSendFile() {
+  var file = (document.getElementById('chatFileInput') || {}).files;
+  if (!file || !file[0] || !S.chatConn) return;
+  var f = file[0];
+  var data = await readAsDataURL(f);
+  var msg = { id: uid(), type: 'file', name: f.name, size: f.size, data: data, from: 'me', ts: Date.now() };
+  chatFileStore[msg.id] = { data: data, name: f.name };
+  S.chatConn.send(JSON.stringify(msg));
+  S.chatMessages.push(msg);
+  setTimeout(function() {
+    S.chatMessages = S.chatMessages.filter(function(m) { return m !== msg; });
+    delete chatFileStore[msg.id];
+    if (S.showModal === 'chat') render();
+  }, 5 * 60 * 1000);
+  render();
+  setTimeout(function() { var el = Q('chatMsgs'); if (el) el.scrollTop = el.scrollHeight; }, 50);
 }
 
 // Telegram Sync
