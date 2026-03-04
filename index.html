@@ -457,6 +457,7 @@ function renderSyncModal() {
 }
 
 function renderChatModal() {
+  if (!S.chatMessages) S.chatMessages = [];
   var msgs = S.chatMessages.map(function(m) {
     var isMe = m.from === 'me';
     var isFile = m.type === 'file';
