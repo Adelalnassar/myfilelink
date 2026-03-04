@@ -1069,7 +1069,7 @@ function doSendMessage() {
   if (inputEl) S.chatInput = inputEl.value;
   if (!S.chatConn) { alert('Not connected yet!'); return; }
   if (!S.chatInput || !S.chatInput.trim()) return;
-  var msg = { id: uid(), type: 'text', text: S.chatInput.trim(), from: 'me', ts: Date.now() };
+  var msg = { id: Math.random().toString(36).substr(2,9), type: 'text', text: S.chatInput.trim(), from: 'me', ts: Date.now() };
   S.chatConn.send(JSON.stringify(msg));
   S.chatMessages.push(msg);
   S.chatInput = '';
@@ -1093,7 +1093,7 @@ async function doSendFile() {
     r.onload = function(e) { res(e.target.result); };
     r.readAsDataURL(f);
   });
-  var msg = { id: uid(), type: 'file', name: f.name, size: f.size, data: data, from: 'me', ts: Date.now() };
+  var msg = { id: Math.random().toString(36).substr(2,9), type: 'file', name: f.name, size: f.size, data: data, from: 'me', ts: Date.now() };
   chatFileStore[msg.id] = { data: data, name: f.name };
   S.chatConn.send(JSON.stringify(msg));
   S.chatMessages.push(msg);
