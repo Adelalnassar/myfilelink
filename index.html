@@ -470,7 +470,10 @@ function renderChatModal() {
     var time = new Date(m.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     var bubble = isFile
       ? '<div style="font-size:.82rem;font-weight:600;">&#128206; ' + esc(m.name) + ' (' + fmtSize(m.size) + ')</div>'
-        + '<button data-dlid="' + m.id + '" class="chat-dl-btn" style="margin-top:.3rem;font-size:.75rem;background:rgba(255,255,255,.3);border:none;border-radius:.3rem;padding:.2rem .5rem;cursor:pointer;color:inherit;">Download</button>'
+        + '<div style="display:flex;gap:.3rem;margin-top:.3rem;">'
+      + '<button data-dlid="' + m.id + '" class="chat-dl-btn" style="font-size:.75rem;background:rgba(255,255,255,.3);border:none;border-radius:.3rem;padding:.2rem .5rem;cursor:pointer;color:inherit;">Download</button>'
+      + (!isMe ? '<button data-saveid="' + m.id + '" class="chat-save-btn" style="font-size:.75rem;background:rgba(255,255,255,.3);border:none;border-radius:.3rem;padding:.2rem .5rem;cursor:pointer;color:inherit;">Save to My File Link</button>' : '')
+      + '</div>'
       : '<div>' + esc(m.text) + '</div>';
     return '<div style="display:flex;justify-content:' + (isMe ? 'flex-end' : 'flex-start') + ';margin-bottom:.5rem;">'
       + '<div style="max-width:75%;background:' + (isMe ? '#7c3aed' : '#f3f4f6') + ';color:' + (isMe ? '#fff' : '#1f2937') + ';padding:.6rem .85rem;border-radius:' + (isMe ? '1rem 1rem 0 1rem' : '1rem 1rem 1rem 0') + ';font-size:.875rem;">'
@@ -723,6 +726,41 @@ function attachListeners() {
   // Chat download buttons
   document.querySelectorAll('.chat-dl-btn').forEach(function(btn) {
     btn.addEventListener('click', function() { downloadChatFile(btn.dataset.dlid); });
+  });
+  document.querySelectorAll('.chat-save-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      var id = btn.dataset.saveid;
+      var f = chatFileStore[id];
+      if (!f) { alert('File no longer available (expired).'); return; }
+      // Find which folder to save to
+      var folderList = S.folders.length
+        ? S.folders.map(function(fo) { return fo.id + ':' + fo.name; }).join('\n')
+        : '';
+      var targetFolderId = null;
+      if (S.folders.length > 0) {
+        var choice = prompt('Save to which folder? Type folder name:\n' + S.folders.map(function(fo){ return fo.name; }).join(', ') + '\n\nLeave blank for Home.');
+        if (choice === null) return; // cancelled
+        var found = S.folders.find(function(fo) { return fo.name.toLowerCase() === (choice||'').toLowerCase(); });
+        if (found) targetFolderId = found.id;
+      }
+      // Create file object and save
+      var newFile = {
+        id: Date.now() + Math.random().toString(36).substr(2,5),
+        name: f.name,
+        type: f.data.split(';')[0].replace('data:','') || 'application/octet-stream',
+        size: Math.round(f.data.length * 0.75),
+        data: f.data,
+        folderId: targetFolderId || null,
+        hidden: false,
+        ts: Date.now()
+      };
+      S.files.push(newFile);
+      await saveFiles();
+      btn.textContent = 'Saved!';
+      btn.disabled = true;
+      S.success = 'File saved to My File Link!';
+      setTimeout(function() { S.success = ''; render(); }, 2000);
+    });
   });
   // Scroll chat to bottom
   var chatMsgs = Q('chatMsgs');
