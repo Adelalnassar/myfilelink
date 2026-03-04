@@ -1010,7 +1010,9 @@ function initPeer() {
     S.chatPeerId = 'ERROR: Chat library failed to load. Try refreshing the page.';
     render(); return;
   }
-  var peer = new Peer({ debug: 0 });
+  // Generate short 6-char ID
+  var shortId = 'mfl-' + Math.random().toString(36).substr(2,4).toUpperCase();
+  var peer = new Peer(shortId, { debug: 0 });
   peer.on('open', function(id) {
     S.chatPeerId = id;
     render();
@@ -1063,11 +1065,15 @@ function doConnectPeer() {
 }
 
 function doSendMessage() {
-  if (!S.chatConn || !S.chatInput.trim()) return;
+  var inputEl = document.getElementById('chatInput');
+  if (inputEl) S.chatInput = inputEl.value;
+  if (!S.chatConn) { alert('Not connected yet!'); return; }
+  if (!S.chatInput || !S.chatInput.trim()) return;
   var msg = { id: uid(), type: 'text', text: S.chatInput.trim(), from: 'me', ts: Date.now() };
   S.chatConn.send(JSON.stringify(msg));
   S.chatMessages.push(msg);
   S.chatInput = '';
+  if (inputEl) inputEl.value = '';
   // Auto-delete after 5 minutes
   setTimeout(function() {
     S.chatMessages = S.chatMessages.filter(function(m) { return m !== msg; });
@@ -1078,10 +1084,15 @@ function doSendMessage() {
 }
 
 async function doSendFile() {
-  var file = (document.getElementById('chatFileInput') || {}).files;
-  if (!file || !file[0] || !S.chatConn) return;
-  var f = file[0];
-  var data = await readAsDataURL(f);
+  var fileInput = document.getElementById('chatFileInput');
+  if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
+  if (!S.chatConn) { alert('Not connected yet!'); return; }
+  var f = fileInput.files[0];
+  var data = await new Promise(function(res) {
+    var r = new FileReader();
+    r.onload = function(e) { res(e.target.result); };
+    r.readAsDataURL(f);
+  });
   var msg = { id: uid(), type: 'file', name: f.name, size: f.size, data: data, from: 'me', ts: Date.now() };
   chatFileStore[msg.id] = { data: data, name: f.name };
   S.chatConn.send(JSON.stringify(msg));
